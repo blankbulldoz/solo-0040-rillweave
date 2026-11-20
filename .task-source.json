@@ -1,0 +1,7309 @@
+{
+  "task_source_schema_version": 1,
+  "cc_feedback_profile": "cc-feedback-2611",
+  "project_domain": "基础设施",
+  "project_subdirection": "数据库",
+  "supported_task_types": [
+    "功能开发",
+    "功能优化",
+    "泛Agent需求",
+    "代码重构",
+    "依赖升级与迁移",
+    "质量保障",
+    "项目维护",
+    "技术讨论",
+    "问题排查与诊断",
+    "部署运维"
+  ],
+  "type_coverage": {
+    "功能开发": {
+      "status": "supported",
+      "reason": "实体规则、图查询、可见版本与镜像安装可支撑新的数据库能力。",
+      "source_anchors": [
+        "catalog/rules.go",
+        "catalog/validate.go",
+        "change/edit.go",
+        "walk/path.go",
+        "walk/options.go",
+        "engine/queries.go",
+        "engine/views.go",
+        "change/diff.go",
+        "graph/model.go",
+        "engine/publish.go",
+        "engine/database.go",
+        "image/codec.go",
+        "disk/heads.go"
+      ]
+    },
+    "功能优化": {
+      "status": "supported",
+      "reason": "现有提交、固定读及路径工作流支持改变可观察的行为而保留版本语义。",
+      "source_anchors": [
+        "catalog/validate.go",
+        "change/edit.go",
+        "engine/publish.go",
+        "index/postings.go",
+        "catalog/rules.go",
+        "engine/queries.go",
+        "walk/path.go",
+        "walk/options.go",
+        "engine/views.go",
+        "view/handles.go",
+        "engine/database.go"
+      ]
+    },
+    "泛Agent需求": {
+      "status": "supported",
+      "reason": "可把有向图见证、历史视图和镜像内容转成独立的下游数据或决策交付。",
+      "source_anchors": [
+        "walk/components.go",
+        "index/adjacency.go",
+        "engine/queries.go",
+        "engine/views.go",
+        "image/codec.go",
+        "graph/model.go",
+        "walk/path.go",
+        "walk/options.go",
+        "change/diff.go"
+      ]
+    },
+    "代码重构": {
+      "status": "supported",
+      "reason": "可分离候选判定、不可变读根、持久切换和恢复的内部责任，保留现有 API。",
+      "source_anchors": [
+        "engine/publish.go",
+        "disk/heads.go",
+        "engine/database.go",
+        "engine/views.go",
+        "view/handles.go",
+        "index/postings.go"
+      ]
+    },
+    "依赖升级与迁移": {
+      "status": "supported",
+      "reason": "实际版本一磁盘和可传输镜像、严格标量与旧 HTTP 入口提供兼容迁移输入。",
+      "source_anchors": [
+        "engine/views.go",
+        "image/codec.go",
+        "graph/model.go",
+        "engine/publish.go",
+        "engine/database.go",
+        "disk/heads.go",
+        "index/postings.go",
+        "graph/scalar.go",
+        "catalog/rules.go"
+      ]
+    },
+    "质量保障": {
+      "status": "supported",
+      "reason": "可以用独立图模型和进程操作记录验证路径代价、提交原子性和持久可见性。",
+      "source_anchors": [
+        "walk/path.go",
+        "walk/options.go",
+        "engine/queries.go",
+        "catalog/validate.go",
+        "change/edit.go",
+        "engine/publish.go",
+        "disk/heads.go",
+        "engine/database.go",
+        "index/postings.go"
+      ]
+    },
+    "项目维护": {
+      "status": "supported",
+      "reason": "录入模式、替换属性、导出与回读形成有条件的消费者和维护文档。",
+      "source_anchors": [
+        "catalog/rules.go",
+        "catalog/validate.go",
+        "change/edit.go",
+        "engine/views.go",
+        "view/handles.go",
+        "engine/database.go",
+        "image/codec.go",
+        "graph/model.go",
+        "index/postings.go",
+        "engine/queries.go"
+      ]
+    },
+    "技术讨论": {
+      "status": "supported",
+      "reason": "有读写全量重建、弧身份、固定视图资源与多种读形态可进行架构选择。",
+      "source_anchors": [
+        "index/adjacency.go",
+        "walk/reach.go",
+        "walk/options.go",
+        "engine/views.go",
+        "view/handles.go",
+        "engine/database.go",
+        "engine/publish.go",
+        "disk/heads.go"
+      ]
+    },
+    "问题排查与诊断": {
+      "status": "supported",
+      "reason": "可用公开接口复现选择不同视图或查询规则时的表面冲突，并定位受影响范围。",
+      "source_anchors": [
+        "walk/path.go",
+        "walk/options.go",
+        "engine/queries.go",
+        "engine/publish.go",
+        "engine/database.go",
+        "image/codec.go",
+        "disk/heads.go",
+        "engine/views.go",
+        "change/diff.go",
+        "graph/model.go"
+      ]
+    },
+    "部署运维": {
+      "status": "supported",
+      "reason": "真实数据目录锁、启动验证、写入稳定性及固定视图边界支持部署和恢复演练。",
+      "source_anchors": [
+        "disk/directory.go",
+        "cmd/rillweaved/main.go",
+        "engine/database.go",
+        "disk/heads.go",
+        "index/postings.go",
+        "engine/publish.go",
+        "image/codec.go"
+      ]
+    },
+    "Bugfix": {
+      "status": "no_verified_defect",
+      "reason": "健康基线无已查实且保留的契约违例；不预埋缺陷。"
+    }
+  },
+  "prompt_contract": {
+    "schema_version": 1,
+    "mode": "integrated",
+    "baseline_tier": "deep-task-ready",
+    "generation_scope": {
+      "mode": "all_supported"
+    },
+    "minimum_active_prompts": {
+      "功能开发": 20,
+      "功能优化": 20,
+      "泛Agent需求": 10,
+      "代码重构": 2,
+      "依赖升级与迁移": 2,
+      "质量保障": 2,
+      "项目维护": 2,
+      "技术讨论": 2,
+      "问题排查与诊断": 2,
+      "部署运维": 2
+    },
+    "minimum_anchors": {
+      "功能开发": 25,
+      "功能优化": 25,
+      "泛Agent需求": 15,
+      "代码重构": 15,
+      "依赖升级与迁移": 15,
+      "质量保障": 15,
+      "项目维护": 15,
+      "技术讨论": 15,
+      "问题排查与诊断": 15,
+      "部署运维": 15
+    },
+    "capacity_floor": {
+      "modules": 8,
+      "workflows": 10,
+      "mechanisms": 8,
+      "entities": 8,
+      "state_machines": 5,
+      "extension_seams": 12,
+      "tension_points": 10
+    }
+  },
+  "entities": [
+    {
+      "id": "namespace",
+      "label": "Graph namespace",
+      "relations": [
+        "revision.belongs_to.namespace"
+      ],
+      "invariants": [
+        "Name is unique per instance"
+      ]
+    },
+    {
+      "id": "revision",
+      "label": "Immutable revision",
+      "relations": [
+        "revision.owns.vertex_and_arc"
+      ],
+      "invariants": [
+        "Accepted head advances by one"
+      ]
+    },
+    {
+      "id": "schema",
+      "label": "Typed catalog",
+      "relations": [
+        "schema.constrains.vertex_and_arc"
+      ],
+      "invariants": [
+        "Every record conforms to final rules"
+      ]
+    },
+    {
+      "id": "vertex",
+      "label": "Vertex",
+      "relations": [
+        "vertex.member_of.revision"
+      ],
+      "invariants": [
+        "ID unique within namespace and vertex table"
+      ]
+    },
+    {
+      "id": "arc",
+      "label": "Directed arc",
+      "relations": [
+        "arc.references.vertex_pair"
+      ],
+      "invariants": [
+        "Parallel arcs keep their own IDs and costs"
+      ]
+    },
+    {
+      "id": "scalar",
+      "label": "Scalar",
+      "relations": [
+        "scalar.used_by.posting"
+      ],
+      "invariants": [
+        "Types stay distinct; absent is not a value"
+      ]
+    },
+    {
+      "id": "posting",
+      "label": "Equality posting",
+      "relations": [
+        "posting.references.revision_vertices"
+      ],
+      "invariants": [
+        "Each entry is scoped by kind, property and typed value"
+      ]
+    },
+    {
+      "id": "handle",
+      "label": "Read handle",
+      "relations": [
+        "handle.retains.revision"
+      ],
+      "invariants": [
+        "Graph-scoped and process-local"
+      ]
+    },
+    {
+      "id": "image",
+      "label": "Graph image",
+      "relations": [
+        "image.serializes.revision"
+      ],
+      "invariants": [
+        "Format, size and payload digest checked before installation"
+      ]
+    },
+    {
+      "id": "directory",
+      "label": "Data directory",
+      "relations": [
+        "directory.stores.installed_images"
+      ],
+      "invariants": [
+        "Only an exclusive owner may publish"
+      ]
+    },
+    {
+      "id": "component",
+      "label": "Strong component",
+      "relations": [
+        "component.partitions.revision_vertices"
+      ],
+      "invariants": [
+        "Members are mutually reachable under selected kinds"
+      ]
+    }
+  ],
+  "state_machines": [
+    {
+      "subject": "namespace",
+      "states": [
+        "absent",
+        "installed"
+      ],
+      "transitions": [
+        "absent->installed"
+      ],
+      "invariants": [
+        "An existing name may not be installed twice"
+      ]
+    },
+    {
+      "subject": "revision",
+      "states": [
+        "candidate",
+        "validated",
+        "published",
+        "rejected",
+        "detached"
+      ],
+      "transitions": [
+        "candidate->validated",
+        "candidate->rejected",
+        "validated->published",
+        "published->detached"
+      ],
+      "invariants": [
+        "Unpublished candidates are never returned"
+      ]
+    },
+    {
+      "subject": "handle",
+      "states": [
+        "held",
+        "released",
+        "lost_on_restart"
+      ],
+      "transitions": [
+        "held->released",
+        "held->lost_on_restart"
+      ],
+      "invariants": [
+        "An already resolved read remains safe"
+      ]
+    },
+    {
+      "subject": "image",
+      "states": [
+        "encoded",
+        "verified",
+        "installed",
+        "rejected"
+      ],
+      "transitions": [
+        "encoded->verified",
+        "encoded->rejected",
+        "verified->installed"
+      ],
+      "invariants": [
+        "Integrity does not replace catalog validation"
+      ]
+    },
+    {
+      "subject": "directory",
+      "states": [
+        "available",
+        "owned",
+        "released"
+      ],
+      "transitions": [
+        "available->owned",
+        "owned->released"
+      ],
+      "invariants": [
+        "Second writer is rejected while ownership is held"
+      ]
+    }
+  ],
+  "capability_families": [
+    {
+      "family": "模式与约束",
+      "occupied_by": [
+        "rules"
+      ],
+      "available": true
+    },
+    {
+      "family": "原子图编辑",
+      "occupied_by": [
+        "unique"
+      ],
+      "available": true
+    },
+    {
+      "family": "并发与锁",
+      "occupied_by": [
+        "publish",
+        "lock"
+      ],
+      "available": true
+    },
+    {
+      "family": "版本读取",
+      "occupied_by": [
+        "ident"
+      ],
+      "available": true
+    },
+    {
+      "family": "类型化查询",
+      "occupied_by": [
+        "post"
+      ],
+      "available": true
+    },
+    {
+      "family": "双向邻接",
+      "occupied_by": [
+        "adj"
+      ],
+      "available": true
+    },
+    {
+      "family": "有向可达",
+      "occupied_by": [
+        "reach"
+      ],
+      "available": true
+    },
+    {
+      "family": "代价路径",
+      "occupied_by": [
+        "path"
+      ],
+      "available": true
+    },
+    {
+      "family": "连通分解",
+      "occupied_by": [
+        "scc"
+      ],
+      "available": true
+    },
+    {
+      "family": "视图生命周期",
+      "occupied_by": [
+        "hold"
+      ],
+      "available": true
+    },
+    {
+      "family": "版本差异",
+      "occupied_by": [
+        "diff"
+      ],
+      "available": true
+    },
+    {
+      "family": "导出与冻结",
+      "occupied_by": [
+        "image"
+      ],
+      "available": true
+    },
+    {
+      "family": "镜像恢复",
+      "occupied_by": [
+        "restore"
+      ],
+      "available": true
+    },
+    {
+      "family": "启动恢复",
+      "occupied_by": [
+        "reopen"
+      ],
+      "available": true
+    },
+    {
+      "family": "标量与类型",
+      "occupied_by": [
+        "scalar"
+      ],
+      "available": true
+    }
+  ],
+  "extension_seams": [
+    {
+      "id": "rules",
+      "anchor": "catalog/rules.go:Rules catalog/validate.go:Validate change/edit.go:Prepare",
+      "entry": "catalog",
+      "distinct_outcome": "更改候选模式时量化受影响的图实例",
+      "mechanism": "policy_rules"
+    },
+    {
+      "id": "unique",
+      "anchor": "catalog/validate.go:Validate change/edit.go:Prepare engine/publish.go:Commit",
+      "entry": "commit",
+      "distinct_outcome": "用整组编辑的最终约束接受未发布图",
+      "mechanism": "batch_transaction"
+    },
+    {
+      "id": "publish",
+      "anchor": "engine/publish.go:publish disk/heads.go:Write engine/database.go:materialize",
+      "entry": "commit",
+      "distinct_outcome": "组合持久头和同步派生状态发布",
+      "mechanism": "concurrency"
+    },
+    {
+      "id": "ident",
+      "anchor": "engine/queries.go:Vertex engine/views.go:read graph/model.go:Graph",
+      "entry": "vertex",
+      "distinct_outcome": "从同一视图解释多个记录及其身份",
+      "mechanism": "snapshot_consistency"
+    },
+    {
+      "id": "post",
+      "anchor": "index/postings.go:Equal catalog/rules.go:LookupRule engine/queries.go:Lookup",
+      "entry": "lookup",
+      "distinct_outcome": "组合类型化候选集并生成确定性查询结果",
+      "mechanism": "policy_rules"
+    },
+    {
+      "id": "adj",
+      "anchor": "index/adjacency.go:Visit walk/reach.go:Adjacent walk/options.go:topologyFor",
+      "entry": "adjacency",
+      "distinct_outcome": "依照原弧身份合成高阶邻接结果",
+      "mechanism": "ranking_reorder"
+    },
+    {
+      "id": "reach",
+      "anchor": "walk/reach.go:Reach walk/options.go:visit index/adjacency.go:Visit",
+      "entry": "reach",
+      "distinct_outcome": "在固定图上导出可达事实或阻断证据",
+      "mechanism": "capacity"
+    },
+    {
+      "id": "path",
+      "anchor": "walk/path.go:Path walk/options.go:visit engine/queries.go:Path",
+      "entry": "path",
+      "distinct_outcome": "基于正整型代价和跳数生成新路径证据",
+      "mechanism": "ranking_reorder"
+    },
+    {
+      "id": "scc",
+      "anchor": "walk/components.go:Components index/adjacency.go:Visit engine/queries.go:Components",
+      "entry": "components",
+      "distinct_outcome": "从定向分解及缩点链接导出顺序",
+      "mechanism": "policy_rules"
+    },
+    {
+      "id": "hold",
+      "anchor": "engine/views.go:Hold view/handles.go:Resolve engine/database.go:materialize",
+      "entry": "pin",
+      "distinct_outcome": "让同一不可变视图供多个操作一致使用",
+      "mechanism": "resource_lifecycle"
+    },
+    {
+      "id": "diff",
+      "anchor": "engine/views.go:pair change/diff.go:Compare graph/model.go:Graph",
+      "entry": "compare",
+      "distinct_outcome": "以两个选中版本的身份差异推导影响",
+      "mechanism": "versioning_audit"
+    },
+    {
+      "id": "image",
+      "anchor": "engine/views.go:Export image/codec.go:Encode graph/model.go:Graph",
+      "entry": "backup",
+      "distinct_outcome": "从一致图版本构造可携带的表示",
+      "mechanism": "export_freeze"
+    },
+    {
+      "id": "restore",
+      "anchor": "engine/publish.go:Restore engine/database.go:checkedImage image/codec.go:Decode disk/heads.go:Write",
+      "entry": "backup",
+      "distinct_outcome": "校验派生图再完成名称内安装",
+      "mechanism": "recovery_rollback"
+    },
+    {
+      "id": "reopen",
+      "anchor": "disk/heads.go:RestoreHeads engine/database.go:acceptHead index/postings.go:BuildPostings",
+      "entry": "restart",
+      "distinct_outcome": "用持久图重建等价的内存读模型",
+      "mechanism": "recovery_rollback"
+    },
+    {
+      "id": "lock",
+      "anchor": "disk/directory.go:Open cmd/rillweaved/main.go:run engine/database.go:Open",
+      "entry": "restart",
+      "distinct_outcome": "以目录所有权隔离恢复和发布",
+      "mechanism": "concurrency"
+    },
+    {
+      "id": "scalar",
+      "anchor": "graph/scalar.go:UnmarshalJSON catalog/rules.go:LookupRule index/postings.go:Equal",
+      "entry": "lookup",
+      "distinct_outcome": "按标量身份执行无隐式转换的对照",
+      "mechanism": "policy_rules"
+    }
+  ],
+  "tension_points": [
+    {
+      "workflow_id": "catalog",
+      "description": "Mode changes validate old records in the proposed state",
+      "observable_failure": "A new required field or incompatible endpoint rule slips into the head"
+    },
+    {
+      "workflow_id": "commit",
+      "description": "Sequential private edits must permit a valid final unique swap, but reject a stale base",
+      "observable_failure": "A read observes an intermediate conflict, orphan or lost change"
+    },
+    {
+      "workflow_id": "vertex",
+      "description": "A vertex ID can be present in head and missing in the chosen pin",
+      "observable_failure": "The older view reads a newer vertex"
+    },
+    {
+      "workflow_id": "lookup",
+      "description": "Typed equality and missing value have different semantics",
+      "observable_failure": "A posting returns a wrong-type or absent property"
+    },
+    {
+      "workflow_id": "adjacency",
+      "description": "Merging directions preserves parallel arcs but emits each loop once",
+      "observable_failure": "Two distinct arcs collapse or the loop consumes two rows"
+    },
+    {
+      "workflow_id": "reach",
+      "description": "Depth is not the same as an arc inspection allowance",
+      "observable_failure": "A partial frontier is presented as the complete reachable set"
+    },
+    {
+      "workflow_id": "path",
+      "description": "The cheapest prefix may spend hops needed by the final route",
+      "observable_failure": "A feasible bounded path is missed"
+    },
+    {
+      "workflow_id": "components",
+      "description": "Directional membership depends on selected kinds; crossing arcs are not component identities",
+      "observable_failure": "Weak components replace mutually reachable groups"
+    },
+    {
+      "workflow_id": "pin",
+      "description": "A bounded pinned revision is independent of head but not durable",
+      "observable_failure": "A release changes a resolved read or a restart revives a handle"
+    },
+    {
+      "workflow_id": "compare",
+      "description": "Two revisions must resolve together; record identity and schema are compared separately",
+      "observable_failure": "The difference silently compares another graph or misclassifies retained keys"
+    },
+    {
+      "workflow_id": "backup",
+      "description": "The digest certifies bytes, not rule compatibility or target namespace ownership",
+      "observable_failure": "An incompatible or foreign image replaces durable state"
+    },
+    {
+      "workflow_id": "restart",
+      "description": "Exclusive ownership precedes recovery; a malformed head cannot pass readiness",
+      "observable_failure": "A second writer starts or valid graphs are served despite a corrupt installed head"
+    }
+  ],
+  "prompt_anchors": [
+    {
+      "id": "motif-joins",
+      "task_type": "功能开发",
+      "capability_family": "双向邻接",
+      "subject": "arc",
+      "state": "selected",
+      "invariant": "平行弧保留原身份",
+      "observable": "多变量模式输出确定的弧绑定",
+      "primary_mechanism": "ranking_reorder",
+      "extension_seam_id": "adj",
+      "workflow_ids": [
+        "adjacency",
+        "lookup"
+      ],
+      "source_anchors": [
+        "index/adjacency.go",
+        "walk/reach.go",
+        "walk/options.go",
+        "index/postings.go",
+        "catalog/rules.go",
+        "engine/queries.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "index/adjacency.go",
+          "walk/reach.go",
+          "walk/options.go",
+          "index/postings.go",
+          "catalog/rules.go",
+          "engine/queries.go"
+        ],
+        "functions": [
+          "Visit",
+          "Adjacent",
+          "topologyFor",
+          "Equal",
+          "LookupRule",
+          "Lookup"
+        ]
+      }
+    },
+    {
+      "id": "guarded-exclusion",
+      "task_type": "功能开发",
+      "capability_family": "类型化查询",
+      "subject": "posting",
+      "state": "selected",
+      "invariant": "缺字段不是假值且弧查询基于所选视图",
+      "observable": "返回带缺失关系证据的匹配组",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "post",
+      "workflow_ids": [
+        "lookup",
+        "adjacency"
+      ],
+      "source_anchors": [
+        "index/postings.go",
+        "catalog/rules.go",
+        "engine/queries.go",
+        "index/adjacency.go",
+        "walk/reach.go",
+        "walk/options.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "index/postings.go",
+          "catalog/rules.go",
+          "engine/queries.go",
+          "index/adjacency.go",
+          "walk/reach.go",
+          "walk/options.go"
+        ],
+        "functions": [
+          "Equal",
+          "LookupRule",
+          "Lookup",
+          "Visit",
+          "Adjacent",
+          "topologyFor"
+        ]
+      }
+    },
+    {
+      "id": "route-diversity",
+      "task_type": "功能开发",
+      "capability_family": "代价路径",
+      "subject": "arc",
+      "state": "route",
+      "invariant": "弧身份独立于端点对",
+      "observable": "输出兼顾互不共弧的路径组",
+      "primary_mechanism": "ranking_reorder",
+      "extension_seam_id": "path",
+      "workflow_ids": [
+        "path",
+        "adjacency"
+      ],
+      "source_anchors": [
+        "walk/path.go",
+        "walk/options.go",
+        "engine/queries.go",
+        "index/adjacency.go",
+        "walk/reach.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/path.go",
+          "walk/options.go",
+          "engine/queries.go",
+          "index/adjacency.go",
+          "walk/reach.go"
+        ],
+        "functions": [
+          "Path",
+          "visit",
+          "Visit",
+          "Adjacent",
+          "topologyFor"
+        ]
+      }
+    },
+    {
+      "id": "repeatable-expression",
+      "task_type": "功能开发",
+      "capability_family": "代价路径",
+      "subject": "arc",
+      "state": "route",
+      "invariant": "弧种需由同一目录解释",
+      "observable": "查明符合交替关系序列的路径",
+      "primary_mechanism": "ranking_reorder",
+      "extension_seam_id": "path",
+      "workflow_ids": [
+        "path",
+        "catalog"
+      ],
+      "source_anchors": [
+        "walk/path.go",
+        "walk/options.go",
+        "engine/queries.go",
+        "catalog/rules.go",
+        "catalog/validate.go",
+        "change/edit.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/path.go",
+          "walk/options.go",
+          "engine/queries.go",
+          "catalog/rules.go",
+          "catalog/validate.go",
+          "change/edit.go"
+        ],
+        "functions": [
+          "Path",
+          "visit",
+          "Rules",
+          "Validate",
+          "Prepare"
+        ]
+      }
+    },
+    {
+      "id": "dependency-impact",
+      "task_type": "功能开发",
+      "capability_family": "有向可达",
+      "subject": "vertex",
+      "state": "frontier",
+      "invariant": "定向入边和出边含义不同",
+      "observable": "给出变更源及受影响对象归因",
+      "primary_mechanism": "capacity",
+      "extension_seam_id": "reach",
+      "workflow_ids": [
+        "reach",
+        "components"
+      ],
+      "source_anchors": [
+        "walk/reach.go",
+        "walk/options.go",
+        "index/adjacency.go",
+        "walk/components.go",
+        "engine/queries.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/reach.go",
+          "walk/options.go",
+          "index/adjacency.go",
+          "walk/components.go",
+          "engine/queries.go"
+        ],
+        "functions": [
+          "Reach",
+          "visit",
+          "Visit",
+          "Components"
+        ]
+      }
+    },
+    {
+      "id": "blockage-cuts",
+      "task_type": "功能开发",
+      "capability_family": "代价路径",
+      "subject": "arc",
+      "state": "route",
+      "invariant": "环不等于独立的跨组通路",
+      "observable": "输出定向最小阻断弧及残余证据",
+      "primary_mechanism": "ranking_reorder",
+      "extension_seam_id": "path",
+      "workflow_ids": [
+        "path",
+        "components"
+      ],
+      "source_anchors": [
+        "walk/path.go",
+        "walk/options.go",
+        "engine/queries.go",
+        "walk/components.go",
+        "index/adjacency.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/path.go",
+          "walk/options.go",
+          "engine/queries.go",
+          "walk/components.go",
+          "index/adjacency.go"
+        ],
+        "functions": [
+          "Path",
+          "visit",
+          "Components",
+          "Visit"
+        ]
+      }
+    },
+    {
+      "id": "component-stages",
+      "task_type": "功能开发",
+      "capability_family": "连通分解",
+      "subject": "component",
+      "state": "partitioned",
+      "invariant": "缩点不能消除不同组间的方向",
+      "observable": "生成允许并行的分阶段处理计划",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "scc",
+      "workflow_ids": [
+        "components",
+        "vertex"
+      ],
+      "source_anchors": [
+        "walk/components.go",
+        "index/adjacency.go",
+        "engine/queries.go",
+        "engine/views.go",
+        "graph/model.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/components.go",
+          "index/adjacency.go",
+          "engine/queries.go",
+          "engine/views.go",
+          "graph/model.go"
+        ],
+        "functions": [
+          "Components",
+          "Visit",
+          "Vertex",
+          "read",
+          "Graph"
+        ]
+      }
+    },
+    {
+      "id": "project-graph",
+      "task_type": "功能开发",
+      "capability_family": "镜像恢复",
+      "subject": "namespace",
+      "state": "verified",
+      "invariant": "安装态必须具有完整的端点",
+      "observable": "按可解释边界安装派生图而不碰源图",
+      "primary_mechanism": "recovery_rollback",
+      "extension_seam_id": "restore",
+      "workflow_ids": [
+        "backup",
+        "adjacency"
+      ],
+      "source_anchors": [
+        "engine/publish.go",
+        "engine/database.go",
+        "image/codec.go",
+        "disk/heads.go",
+        "index/adjacency.go",
+        "walk/reach.go",
+        "walk/options.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/publish.go",
+          "engine/database.go",
+          "image/codec.go",
+          "disk/heads.go",
+          "index/adjacency.go",
+          "walk/reach.go",
+          "walk/options.go"
+        ],
+        "functions": [
+          "Restore",
+          "checkedImage",
+          "Decode",
+          "Write",
+          "Visit",
+          "Adjacent",
+          "topologyFor"
+        ]
+      }
+    },
+    {
+      "id": "reconcile-branches",
+      "task_type": "功能开发",
+      "capability_family": "版本差异",
+      "subject": "revision",
+      "state": "paired",
+      "invariant": "两支分图的实体可按原始键对照但目标约束须重验",
+      "observable": "报告可合并记录与交互冲突",
+      "primary_mechanism": "versioning_audit",
+      "extension_seam_id": "diff",
+      "workflow_ids": [
+        "compare",
+        "backup",
+        "commit"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "change/diff.go",
+        "graph/model.go",
+        "engine/publish.go",
+        "engine/database.go",
+        "image/codec.go",
+        "disk/heads.go",
+        "catalog/validate.go",
+        "change/edit.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "change/diff.go",
+          "graph/model.go",
+          "engine/publish.go",
+          "engine/database.go",
+          "image/codec.go",
+          "disk/heads.go",
+          "catalog/validate.go",
+          "change/edit.go"
+        ],
+        "functions": [
+          "pair",
+          "Compare",
+          "Graph",
+          "Restore",
+          "checkedImage",
+          "Decode",
+          "Write",
+          "Validate",
+          "Prepare",
+          "Commit"
+        ]
+      }
+    },
+    {
+      "id": "patch-transfer",
+      "task_type": "功能开发",
+      "capability_family": "版本差异",
+      "subject": "revision",
+      "state": "paired",
+      "invariant": "逻辑变化和持久版本是不同层次",
+      "observable": "传递可在同源结构上安全应用的增量包",
+      "primary_mechanism": "versioning_audit",
+      "extension_seam_id": "diff",
+      "workflow_ids": [
+        "compare",
+        "commit"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "change/diff.go",
+        "graph/model.go",
+        "catalog/validate.go",
+        "change/edit.go",
+        "engine/publish.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "change/diff.go",
+          "graph/model.go",
+          "catalog/validate.go",
+          "change/edit.go",
+          "engine/publish.go"
+        ],
+        "functions": [
+          "pair",
+          "Compare",
+          "Graph",
+          "Validate",
+          "Prepare",
+          "Commit"
+        ]
+      }
+    },
+    {
+      "id": "edge-contraction",
+      "task_type": "功能开发",
+      "capability_family": "镜像恢复",
+      "subject": "namespace",
+      "state": "verified",
+      "invariant": "实体键和平行弧不会被邻接自动合并",
+      "observable": "缩点结果能作为持久图独立查询",
+      "primary_mechanism": "recovery_rollback",
+      "extension_seam_id": "restore",
+      "workflow_ids": [
+        "backup",
+        "components"
+      ],
+      "source_anchors": [
+        "engine/publish.go",
+        "engine/database.go",
+        "image/codec.go",
+        "disk/heads.go",
+        "walk/components.go",
+        "index/adjacency.go",
+        "engine/queries.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/publish.go",
+          "engine/database.go",
+          "image/codec.go",
+          "disk/heads.go",
+          "walk/components.go",
+          "index/adjacency.go",
+          "engine/queries.go"
+        ],
+        "functions": [
+          "Restore",
+          "checkedImage",
+          "Decode",
+          "Write",
+          "Components",
+          "Visit"
+        ]
+      }
+    },
+    {
+      "id": "articulation-impact",
+      "task_type": "功能开发",
+      "capability_family": "有向可达",
+      "subject": "vertex",
+      "state": "frontier",
+      "invariant": "同一顶点可被不同弧抵达",
+      "observable": "输出移除候选后丢失可达性的关系",
+      "primary_mechanism": "capacity",
+      "extension_seam_id": "reach",
+      "workflow_ids": [
+        "reach",
+        "adjacency"
+      ],
+      "source_anchors": [
+        "walk/reach.go",
+        "walk/options.go",
+        "index/adjacency.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/reach.go",
+          "walk/options.go",
+          "index/adjacency.go"
+        ],
+        "functions": [
+          "Reach",
+          "visit",
+          "Visit",
+          "Adjacent",
+          "topologyFor"
+        ]
+      }
+    },
+    {
+      "id": "two-sided-slice",
+      "task_type": "功能开发",
+      "capability_family": "代价路径",
+      "subject": "arc",
+      "state": "route",
+      "invariant": "导出只能表示一个一致视图",
+      "observable": "输出每条弧都处在指定端点对路径上的图材料",
+      "primary_mechanism": "ranking_reorder",
+      "extension_seam_id": "path",
+      "workflow_ids": [
+        "path",
+        "backup"
+      ],
+      "source_anchors": [
+        "walk/path.go",
+        "walk/options.go",
+        "engine/queries.go",
+        "engine/views.go",
+        "image/codec.go",
+        "graph/model.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/path.go",
+          "walk/options.go",
+          "engine/queries.go",
+          "engine/views.go",
+          "image/codec.go",
+          "graph/model.go"
+        ],
+        "functions": [
+          "Path",
+          "visit",
+          "Export",
+          "Encode",
+          "Graph"
+        ]
+      }
+    },
+    {
+      "id": "type-inference",
+      "task_type": "功能开发",
+      "capability_family": "模式与约束",
+      "subject": "schema",
+      "state": "candidate",
+      "invariant": "声明类型和实际数据一一校验",
+      "observable": "从异构图材料推导可核查的候选模式",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "rules",
+      "workflow_ids": [
+        "catalog",
+        "lookup",
+        "backup"
+      ],
+      "source_anchors": [
+        "catalog/rules.go",
+        "catalog/validate.go",
+        "change/edit.go",
+        "graph/scalar.go",
+        "index/postings.go",
+        "engine/publish.go",
+        "engine/database.go",
+        "image/codec.go",
+        "disk/heads.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "catalog/rules.go",
+          "catalog/validate.go",
+          "change/edit.go",
+          "graph/scalar.go",
+          "index/postings.go",
+          "engine/publish.go",
+          "engine/database.go",
+          "image/codec.go",
+          "disk/heads.go"
+        ],
+        "functions": [
+          "Rules",
+          "Validate",
+          "Prepare",
+          "UnmarshalJSON",
+          "LookupRule",
+          "Equal",
+          "Restore",
+          "checkedImage",
+          "Decode",
+          "Write"
+        ]
+      }
+    },
+    {
+      "id": "properties-join",
+      "task_type": "功能开发",
+      "capability_family": "类型化查询",
+      "subject": "posting",
+      "state": "selected",
+      "invariant": "等值中缺失值不等价于零值",
+      "observable": "生成跨顶点种类的关联结果及重复归因",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "post",
+      "workflow_ids": [
+        "lookup"
+      ],
+      "source_anchors": [
+        "index/postings.go",
+        "catalog/rules.go",
+        "engine/queries.go",
+        "graph/scalar.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "index/postings.go",
+          "catalog/rules.go",
+          "engine/queries.go",
+          "graph/scalar.go"
+        ],
+        "functions": [
+          "Equal",
+          "LookupRule",
+          "Lookup",
+          "UnmarshalJSON"
+        ]
+      }
+    },
+    {
+      "id": "quotient-strength",
+      "task_type": "功能开发",
+      "capability_family": "连通分解",
+      "subject": "component",
+      "state": "partitioned",
+      "invariant": "跨组链接目前只表达存在性",
+      "observable": "输出带可验证跨组通达代价的新结果",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "scc",
+      "workflow_ids": [
+        "components",
+        "path"
+      ],
+      "source_anchors": [
+        "walk/components.go",
+        "index/adjacency.go",
+        "engine/queries.go",
+        "walk/path.go",
+        "walk/options.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/components.go",
+          "index/adjacency.go",
+          "engine/queries.go",
+          "walk/path.go",
+          "walk/options.go"
+        ],
+        "functions": [
+          "Components",
+          "Visit",
+          "Path",
+          "visit"
+        ]
+      }
+    },
+    {
+      "id": "candidate-rehearsal",
+      "task_type": "功能开发",
+      "capability_family": "原子图编辑",
+      "subject": "vertex",
+      "state": "candidate",
+      "invariant": "私有候选最终校验才可发布",
+      "observable": "不发布即获得受规则约束的候选路径差异",
+      "primary_mechanism": "batch_transaction",
+      "extension_seam_id": "unique",
+      "workflow_ids": [
+        "commit",
+        "path"
+      ],
+      "source_anchors": [
+        "catalog/validate.go",
+        "change/edit.go",
+        "engine/publish.go",
+        "walk/path.go",
+        "walk/options.go",
+        "engine/queries.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "catalog/validate.go",
+          "change/edit.go",
+          "engine/publish.go",
+          "walk/path.go",
+          "walk/options.go",
+          "engine/queries.go"
+        ],
+        "functions": [
+          "Validate",
+          "Prepare",
+          "Commit",
+          "Path",
+          "visit"
+        ]
+      }
+    },
+    {
+      "id": "dependent-counts",
+      "task_type": "功能开发",
+      "capability_family": "有向可达",
+      "subject": "vertex",
+      "state": "frontier",
+      "invariant": "同源可达距离和标量选择共享版本",
+      "observable": "按前沿和点类型生成去重聚合",
+      "primary_mechanism": "capacity",
+      "extension_seam_id": "reach",
+      "workflow_ids": [
+        "reach",
+        "lookup"
+      ],
+      "source_anchors": [
+        "walk/reach.go",
+        "walk/options.go",
+        "index/adjacency.go",
+        "index/postings.go",
+        "catalog/rules.go",
+        "engine/queries.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/reach.go",
+          "walk/options.go",
+          "index/adjacency.go",
+          "index/postings.go",
+          "catalog/rules.go",
+          "engine/queries.go"
+        ],
+        "functions": [
+          "Reach",
+          "visit",
+          "Visit",
+          "Equal",
+          "LookupRule",
+          "Lookup"
+        ]
+      }
+    },
+    {
+      "id": "pairwise-matrix",
+      "task_type": "功能开发",
+      "capability_family": "代价路径",
+      "subject": "arc",
+      "state": "route",
+      "invariant": "路径返回经过的弧而非只返回代价",
+      "observable": "固定视图产生多端点可复核路由矩阵",
+      "primary_mechanism": "ranking_reorder",
+      "extension_seam_id": "path",
+      "workflow_ids": [
+        "path",
+        "pin"
+      ],
+      "source_anchors": [
+        "walk/path.go",
+        "walk/options.go",
+        "engine/queries.go",
+        "engine/views.go",
+        "view/handles.go",
+        "engine/database.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/path.go",
+          "walk/options.go",
+          "engine/queries.go",
+          "engine/views.go",
+          "view/handles.go",
+          "engine/database.go"
+        ],
+        "functions": [
+          "Path",
+          "visit",
+          "Hold",
+          "Resolve",
+          "materialize"
+        ]
+      }
+    },
+    {
+      "id": "graph-collation",
+      "task_type": "功能开发",
+      "capability_family": "导出与冻结",
+      "subject": "image",
+      "state": "encoded",
+      "invariant": "镜像字节摘要不等同内容多态等价",
+      "observable": "给出不同命名图的身份映射和不等价见证",
+      "primary_mechanism": "export_freeze",
+      "extension_seam_id": "image",
+      "workflow_ids": [
+        "backup",
+        "lookup"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "image/codec.go",
+        "graph/model.go",
+        "graph/scalar.go",
+        "catalog/rules.go",
+        "index/postings.go",
+        "engine/publish.go",
+        "engine/database.go",
+        "disk/heads.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "image/codec.go",
+          "graph/model.go",
+          "graph/scalar.go",
+          "catalog/rules.go",
+          "index/postings.go",
+          "engine/publish.go",
+          "engine/database.go",
+          "disk/heads.go"
+        ],
+        "functions": [
+          "Export",
+          "Encode",
+          "Graph",
+          "UnmarshalJSON",
+          "LookupRule",
+          "Equal",
+          "Restore",
+          "checkedImage",
+          "Decode",
+          "Write"
+        ]
+      }
+    },
+    {
+      "id": "constraint-explain",
+      "task_type": "功能开发",
+      "capability_family": "模式与约束",
+      "subject": "schema",
+      "state": "candidate",
+      "invariant": "一组编辑可能同时违背多条互相影响的规则",
+      "observable": "输出互不掩盖的最小矛盾材料",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "rules",
+      "workflow_ids": [
+        "catalog",
+        "commit"
+      ],
+      "source_anchors": [
+        "catalog/rules.go",
+        "catalog/validate.go",
+        "change/edit.go",
+        "engine/publish.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "catalog/rules.go",
+          "catalog/validate.go",
+          "change/edit.go",
+          "engine/publish.go"
+        ],
+        "functions": [
+          "Rules",
+          "Validate",
+          "Prepare",
+          "Commit"
+        ]
+      }
+    },
+    {
+      "id": "targeted-cycles",
+      "task_type": "功能开发",
+      "capability_family": "连通分解",
+      "subject": "component",
+      "state": "partitioned",
+      "invariant": "自环和多实体循环都存在",
+      "observable": "给出指定弧所在循环的定向见证",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "scc",
+      "workflow_ids": [
+        "components",
+        "adjacency"
+      ],
+      "source_anchors": [
+        "walk/components.go",
+        "index/adjacency.go",
+        "engine/queries.go",
+        "walk/reach.go",
+        "walk/options.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/components.go",
+          "index/adjacency.go",
+          "engine/queries.go",
+          "walk/reach.go",
+          "walk/options.go"
+        ],
+        "functions": [
+          "Components",
+          "Visit",
+          "Adjacent",
+          "topologyFor"
+        ]
+      }
+    },
+    {
+      "id": "common-dependency",
+      "task_type": "功能开发",
+      "capability_family": "有向可达",
+      "subject": "vertex",
+      "state": "frontier",
+      "invariant": "最少跳数并不保证最低成本",
+      "observable": "在双边约束下找可共同满足的中继点",
+      "primary_mechanism": "capacity",
+      "extension_seam_id": "reach",
+      "workflow_ids": [
+        "reach",
+        "path"
+      ],
+      "source_anchors": [
+        "walk/reach.go",
+        "walk/options.go",
+        "index/adjacency.go",
+        "walk/path.go",
+        "engine/queries.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/reach.go",
+          "walk/options.go",
+          "index/adjacency.go",
+          "walk/path.go",
+          "engine/queries.go"
+        ],
+        "functions": [
+          "Reach",
+          "visit",
+          "Visit",
+          "Path"
+        ]
+      }
+    },
+    {
+      "id": "typed-degree-census",
+      "task_type": "功能开发",
+      "capability_family": "双向邻接",
+      "subject": "arc",
+      "state": "selected",
+      "invariant": "点未必参加对其种类声明的弧",
+      "observable": "得到含零度与平行弧的分组普查",
+      "primary_mechanism": "ranking_reorder",
+      "extension_seam_id": "adj",
+      "workflow_ids": [
+        "adjacency",
+        "lookup"
+      ],
+      "source_anchors": [
+        "index/adjacency.go",
+        "walk/reach.go",
+        "walk/options.go",
+        "index/postings.go",
+        "catalog/rules.go",
+        "engine/queries.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "index/adjacency.go",
+          "walk/reach.go",
+          "walk/options.go",
+          "index/postings.go",
+          "catalog/rules.go",
+          "engine/queries.go"
+        ],
+        "functions": [
+          "Visit",
+          "Adjacent",
+          "topologyFor",
+          "Equal",
+          "LookupRule",
+          "Lookup"
+        ]
+      }
+    },
+    {
+      "id": "restoration-probe",
+      "task_type": "功能开发",
+      "capability_family": "启动恢复",
+      "subject": "namespace",
+      "state": "recovered",
+      "invariant": "重开恢复持久根而非旧句柄",
+      "observable": "产生可保存在重启边界外的拓扑一致性证据",
+      "primary_mechanism": "recovery_rollback",
+      "extension_seam_id": "reopen",
+      "workflow_ids": [
+        "restart",
+        "compare"
+      ],
+      "source_anchors": [
+        "disk/heads.go",
+        "engine/database.go",
+        "index/postings.go",
+        "engine/views.go",
+        "change/diff.go",
+        "graph/model.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "disk/heads.go",
+          "engine/database.go",
+          "index/postings.go",
+          "engine/views.go",
+          "change/diff.go",
+          "graph/model.go"
+        ],
+        "functions": [
+          "RestoreHeads",
+          "acceptHead",
+          "BuildPostings",
+          "pair",
+          "Compare",
+          "Graph"
+        ]
+      }
+    },
+    {
+      "id": "compatible-writes",
+      "task_type": "功能优化",
+      "capability_family": "原子图编辑",
+      "subject": "vertex",
+      "state": "candidate",
+      "invariant": "基版本过期不允许覆盖现有头",
+      "observable": "非交互改动安全重基且约束冲突仍可识别",
+      "primary_mechanism": "batch_transaction",
+      "extension_seam_id": "unique",
+      "workflow_ids": [
+        "commit",
+        "compare"
+      ],
+      "source_anchors": [
+        "catalog/validate.go",
+        "change/edit.go",
+        "engine/publish.go",
+        "engine/views.go",
+        "change/diff.go",
+        "graph/model.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "catalog/validate.go",
+          "change/edit.go",
+          "engine/publish.go",
+          "engine/views.go",
+          "change/diff.go",
+          "graph/model.go"
+        ],
+        "functions": [
+          "Validate",
+          "Prepare",
+          "Commit",
+          "pair",
+          "Compare",
+          "Graph"
+        ]
+      }
+    },
+    {
+      "id": "repeatable-receipt",
+      "task_type": "功能优化",
+      "capability_family": "并发与锁",
+      "subject": "revision",
+      "state": "validated",
+      "invariant": "确认的图修订必须已经持久",
+      "observable": "写应答中断后仍能确定一次逻辑提交",
+      "primary_mechanism": "concurrency",
+      "extension_seam_id": "publish",
+      "workflow_ids": [
+        "commit",
+        "restart"
+      ],
+      "source_anchors": [
+        "engine/publish.go",
+        "disk/heads.go",
+        "engine/database.go",
+        "index/postings.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/publish.go",
+          "disk/heads.go",
+          "engine/database.go",
+          "index/postings.go"
+        ],
+        "functions": [
+          "publish",
+          "Write",
+          "materialize",
+          "RestoreHeads",
+          "acceptHead",
+          "BuildPostings"
+        ]
+      }
+    },
+    {
+      "id": "delta-write-precondition",
+      "task_type": "功能优化",
+      "capability_family": "原子图编辑",
+      "subject": "vertex",
+      "state": "candidate",
+      "invariant": "唯一值和实体修改共同影响写入合法性",
+      "observable": "只在匹配集合满足写前提时落盘",
+      "primary_mechanism": "batch_transaction",
+      "extension_seam_id": "unique",
+      "workflow_ids": [
+        "commit",
+        "lookup"
+      ],
+      "source_anchors": [
+        "catalog/validate.go",
+        "change/edit.go",
+        "engine/publish.go",
+        "index/postings.go",
+        "catalog/rules.go",
+        "engine/queries.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "catalog/validate.go",
+          "change/edit.go",
+          "engine/publish.go",
+          "index/postings.go",
+          "catalog/rules.go",
+          "engine/queries.go"
+        ],
+        "functions": [
+          "Validate",
+          "Prepare",
+          "Commit",
+          "Equal",
+          "LookupRule",
+          "Lookup"
+        ]
+      }
+    },
+    {
+      "id": "merge-properties",
+      "task_type": "功能优化",
+      "capability_family": "原子图编辑",
+      "subject": "vertex",
+      "state": "candidate",
+      "invariant": "目前替换整条记录并校验最终 schema",
+      "observable": "小范围属性替换能区分未提及和删除",
+      "primary_mechanism": "batch_transaction",
+      "extension_seam_id": "unique",
+      "workflow_ids": [
+        "commit",
+        "lookup"
+      ],
+      "source_anchors": [
+        "catalog/validate.go",
+        "change/edit.go",
+        "engine/publish.go",
+        "graph/scalar.go",
+        "catalog/rules.go",
+        "index/postings.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "catalog/validate.go",
+          "change/edit.go",
+          "engine/publish.go",
+          "graph/scalar.go",
+          "catalog/rules.go",
+          "index/postings.go"
+        ],
+        "functions": [
+          "Validate",
+          "Prepare",
+          "Commit",
+          "UnmarshalJSON",
+          "LookupRule",
+          "Equal"
+        ]
+      }
+    },
+    {
+      "id": "kind-rewrite",
+      "task_type": "功能优化",
+      "capability_family": "模式与约束",
+      "subject": "schema",
+      "state": "candidate",
+      "invariant": "弧端点规则对图内实际连接生效",
+      "observable": "替换种类时一致转换受影响关系",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "rules",
+      "workflow_ids": [
+        "catalog",
+        "adjacency"
+      ],
+      "source_anchors": [
+        "catalog/rules.go",
+        "catalog/validate.go",
+        "change/edit.go",
+        "index/adjacency.go",
+        "walk/reach.go",
+        "walk/options.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "catalog/rules.go",
+          "catalog/validate.go",
+          "change/edit.go",
+          "index/adjacency.go",
+          "walk/reach.go",
+          "walk/options.go"
+        ],
+        "functions": [
+          "Rules",
+          "Validate",
+          "Prepare",
+          "Visit",
+          "Adjacent",
+          "topologyFor"
+        ]
+      }
+    },
+    {
+      "id": "bulk-vertex-removal",
+      "task_type": "功能优化",
+      "capability_family": "原子图编辑",
+      "subject": "vertex",
+      "state": "candidate",
+      "invariant": "删除顶点不能留下任一方向的悬挂弧",
+      "observable": "支持带明确保护规则的批量回收",
+      "primary_mechanism": "batch_transaction",
+      "extension_seam_id": "unique",
+      "workflow_ids": [
+        "commit",
+        "adjacency"
+      ],
+      "source_anchors": [
+        "catalog/validate.go",
+        "change/edit.go",
+        "engine/publish.go",
+        "index/adjacency.go",
+        "walk/reach.go",
+        "walk/options.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "catalog/validate.go",
+          "change/edit.go",
+          "engine/publish.go",
+          "index/adjacency.go",
+          "walk/reach.go",
+          "walk/options.go"
+        ],
+        "functions": [
+          "Validate",
+          "Prepare",
+          "Commit",
+          "Visit",
+          "Adjacent",
+          "topologyFor"
+        ]
+      }
+    },
+    {
+      "id": "typed-ordered-lookup",
+      "task_type": "功能优化",
+      "capability_family": "类型化查询",
+      "subject": "posting",
+      "state": "selected",
+      "invariant": "类型规则和精确匹配数依赖同一视图",
+      "observable": "返回稳定的区间和值顺序读取窗口",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "post",
+      "workflow_ids": [
+        "lookup"
+      ],
+      "source_anchors": [
+        "index/postings.go",
+        "catalog/rules.go",
+        "engine/queries.go",
+        "graph/scalar.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "index/postings.go",
+          "catalog/rules.go",
+          "engine/queries.go",
+          "graph/scalar.go"
+        ],
+        "functions": [
+          "Equal",
+          "LookupRule",
+          "Lookup",
+          "UnmarshalJSON"
+        ]
+      }
+    },
+    {
+      "id": "stable-incidence-page",
+      "task_type": "功能优化",
+      "capability_family": "双向邻接",
+      "subject": "arc",
+      "state": "selected",
+      "invariant": "两方向自环只占一个弧位置",
+      "observable": "写入期间续读仍得完整同版本弧序列",
+      "primary_mechanism": "ranking_reorder",
+      "extension_seam_id": "adj",
+      "workflow_ids": [
+        "adjacency",
+        "pin"
+      ],
+      "source_anchors": [
+        "index/adjacency.go",
+        "walk/reach.go",
+        "walk/options.go",
+        "engine/views.go",
+        "view/handles.go",
+        "engine/database.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "index/adjacency.go",
+          "walk/reach.go",
+          "walk/options.go",
+          "engine/views.go",
+          "view/handles.go",
+          "engine/database.go"
+        ],
+        "functions": [
+          "Visit",
+          "Adjacent",
+          "topologyFor",
+          "Hold",
+          "Resolve",
+          "materialize"
+        ]
+      }
+    },
+    {
+      "id": "retained-frontier",
+      "task_type": "功能优化",
+      "capability_family": "有向可达",
+      "subject": "vertex",
+      "state": "frontier",
+      "invariant": "搜索前缀不足以断言不可达",
+      "observable": "用多次受限请求拿到同一版本完整可达结果",
+      "primary_mechanism": "capacity",
+      "extension_seam_id": "reach",
+      "workflow_ids": [
+        "reach",
+        "pin"
+      ],
+      "source_anchors": [
+        "walk/reach.go",
+        "walk/options.go",
+        "index/adjacency.go",
+        "engine/views.go",
+        "view/handles.go",
+        "engine/database.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/reach.go",
+          "walk/options.go",
+          "index/adjacency.go",
+          "engine/views.go",
+          "view/handles.go",
+          "engine/database.go"
+        ],
+        "functions": [
+          "Reach",
+          "visit",
+          "Visit",
+          "Hold",
+          "Resolve",
+          "materialize"
+        ]
+      }
+    },
+    {
+      "id": "continued-route",
+      "task_type": "功能优化",
+      "capability_family": "代价路径",
+      "subject": "arc",
+      "state": "route",
+      "invariant": "预算用完和没路的语义不同",
+      "observable": "按同一选中版本恢复搜索而不发布未证最优结果",
+      "primary_mechanism": "ranking_reorder",
+      "extension_seam_id": "path",
+      "workflow_ids": [
+        "path",
+        "pin"
+      ],
+      "source_anchors": [
+        "walk/path.go",
+        "walk/options.go",
+        "engine/queries.go",
+        "engine/views.go",
+        "view/handles.go",
+        "engine/database.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/path.go",
+          "walk/options.go",
+          "engine/queries.go",
+          "engine/views.go",
+          "view/handles.go",
+          "engine/database.go"
+        ],
+        "functions": [
+          "Path",
+          "visit",
+          "Hold",
+          "Resolve",
+          "materialize"
+        ]
+      }
+    },
+    {
+      "id": "route-policy",
+      "task_type": "功能优化",
+      "capability_family": "代价路径",
+      "subject": "arc",
+      "state": "route",
+      "invariant": "最优前缀与允许经过的实体相关",
+      "observable": "路径遵循资源条件且排序仍可验证",
+      "primary_mechanism": "ranking_reorder",
+      "extension_seam_id": "path",
+      "workflow_ids": [
+        "path",
+        "lookup"
+      ],
+      "source_anchors": [
+        "walk/path.go",
+        "walk/options.go",
+        "engine/queries.go",
+        "graph/scalar.go",
+        "catalog/rules.go",
+        "index/postings.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/path.go",
+          "walk/options.go",
+          "engine/queries.go",
+          "graph/scalar.go",
+          "catalog/rules.go",
+          "index/postings.go"
+        ],
+        "functions": [
+          "Path",
+          "visit",
+          "UnmarshalJSON",
+          "LookupRule",
+          "Equal"
+        ]
+      }
+    },
+    {
+      "id": "route-waypoints",
+      "task_type": "功能优化",
+      "capability_family": "代价路径",
+      "subject": "arc",
+      "state": "route",
+      "invariant": "中间折点和最终端点从同一图中解析",
+      "observable": "在全局跳数约束内通过多个必经点",
+      "primary_mechanism": "ranking_reorder",
+      "extension_seam_id": "path",
+      "workflow_ids": [
+        "path",
+        "vertex"
+      ],
+      "source_anchors": [
+        "walk/path.go",
+        "walk/options.go",
+        "engine/queries.go",
+        "engine/views.go",
+        "graph/model.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/path.go",
+          "walk/options.go",
+          "engine/queries.go",
+          "engine/views.go",
+          "graph/model.go"
+        ],
+        "functions": [
+          "Path",
+          "visit",
+          "Vertex",
+          "read",
+          "Graph"
+        ]
+      }
+    },
+    {
+      "id": "localized-components",
+      "task_type": "功能优化",
+      "capability_family": "连通分解",
+      "subject": "component",
+      "state": "partitioned",
+      "invariant": "删除外部顶点可能改变互达性",
+      "observable": "指定范围中分组语义可预测而非简单过滤",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "scc",
+      "workflow_ids": [
+        "components",
+        "reach"
+      ],
+      "source_anchors": [
+        "walk/components.go",
+        "index/adjacency.go",
+        "engine/queries.go",
+        "walk/reach.go",
+        "walk/options.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/components.go",
+          "index/adjacency.go",
+          "engine/queries.go",
+          "walk/reach.go",
+          "walk/options.go"
+        ],
+        "functions": [
+          "Components",
+          "Visit",
+          "Reach",
+          "visit"
+        ]
+      }
+    },
+    {
+      "id": "condensation-evidence",
+      "task_type": "功能优化",
+      "capability_family": "连通分解",
+      "subject": "component",
+      "state": "partitioned",
+      "invariant": "多个跨组弧聚合成一条定向链接",
+      "observable": "链接同时带可复核的原弧窗口和准确统计",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "scc",
+      "workflow_ids": [
+        "components",
+        "adjacency"
+      ],
+      "source_anchors": [
+        "walk/components.go",
+        "index/adjacency.go",
+        "engine/queries.go",
+        "walk/reach.go",
+        "walk/options.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/components.go",
+          "index/adjacency.go",
+          "engine/queries.go",
+          "walk/reach.go",
+          "walk/options.go"
+        ],
+        "functions": [
+          "Components",
+          "Visit",
+          "Adjacent",
+          "topologyFor"
+        ]
+      }
+    },
+    {
+      "id": "pin-retirement",
+      "task_type": "功能优化",
+      "capability_family": "视图生命周期",
+      "subject": "handle",
+      "state": "held",
+      "invariant": "释放句柄不改变已开始的读",
+      "observable": "租约长期保持或有界到期均可观察",
+      "primary_mechanism": "resource_lifecycle",
+      "extension_seam_id": "hold",
+      "workflow_ids": [
+        "pin",
+        "commit"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "view/handles.go",
+        "engine/database.go",
+        "engine/publish.go",
+        "disk/heads.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "view/handles.go",
+          "engine/database.go",
+          "engine/publish.go",
+          "disk/heads.go"
+        ],
+        "functions": [
+          "Hold",
+          "Resolve",
+          "materialize",
+          "publish",
+          "Write"
+        ]
+      }
+    },
+    {
+      "id": "compare-schemas",
+      "task_type": "功能优化",
+      "capability_family": "版本差异",
+      "subject": "revision",
+      "state": "paired",
+      "invariant": "目录变化与记录变化是不同事实",
+      "observable": "比较结果区分破坏性变化和兼容性扩展",
+      "primary_mechanism": "versioning_audit",
+      "extension_seam_id": "diff",
+      "workflow_ids": [
+        "compare",
+        "catalog"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "change/diff.go",
+        "graph/model.go",
+        "catalog/rules.go",
+        "catalog/validate.go",
+        "change/edit.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "change/diff.go",
+          "graph/model.go",
+          "catalog/rules.go",
+          "catalog/validate.go",
+          "change/edit.go"
+        ],
+        "functions": [
+          "pair",
+          "Compare",
+          "Graph",
+          "Rules",
+          "Validate",
+          "Prepare"
+        ]
+      }
+    },
+    {
+      "id": "compare-records",
+      "task_type": "功能优化",
+      "capability_family": "版本差异",
+      "subject": "revision",
+      "state": "paired",
+      "invariant": "同 ID 不同标量或端点是更新",
+      "observable": "客户端只拉一次即可重建细粒度差异",
+      "primary_mechanism": "versioning_audit",
+      "extension_seam_id": "diff",
+      "workflow_ids": [
+        "compare",
+        "lookup"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "change/diff.go",
+        "graph/model.go",
+        "graph/scalar.go",
+        "catalog/rules.go",
+        "index/postings.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "change/diff.go",
+          "graph/model.go",
+          "graph/scalar.go",
+          "catalog/rules.go",
+          "index/postings.go"
+        ],
+        "functions": [
+          "pair",
+          "Compare",
+          "Graph",
+          "UnmarshalJSON",
+          "LookupRule",
+          "Equal"
+        ]
+      }
+    },
+    {
+      "id": "backup-transfer",
+      "task_type": "功能优化",
+      "capability_family": "导出与冻结",
+      "subject": "image",
+      "state": "encoded",
+      "invariant": "导出负载的完整性与固定版本绑定",
+      "observable": "传输中断可续取且不能拼接另一版本",
+      "primary_mechanism": "export_freeze",
+      "extension_seam_id": "image",
+      "workflow_ids": [
+        "backup",
+        "pin"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "image/codec.go",
+        "graph/model.go",
+        "view/handles.go",
+        "engine/database.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "image/codec.go",
+          "graph/model.go",
+          "view/handles.go",
+          "engine/database.go"
+        ],
+        "functions": [
+          "Export",
+          "Encode",
+          "Graph",
+          "Hold",
+          "Resolve",
+          "materialize"
+        ]
+      }
+    },
+    {
+      "id": "replace-restore",
+      "task_type": "功能优化",
+      "capability_family": "镜像恢复",
+      "subject": "namespace",
+      "state": "verified",
+      "invariant": "当前导入不会替换现有图",
+      "observable": "受条件控制的替换不损害已选视图",
+      "primary_mechanism": "recovery_rollback",
+      "extension_seam_id": "restore",
+      "workflow_ids": [
+        "backup",
+        "pin"
+      ],
+      "source_anchors": [
+        "engine/publish.go",
+        "engine/database.go",
+        "image/codec.go",
+        "disk/heads.go",
+        "engine/views.go",
+        "view/handles.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/publish.go",
+          "engine/database.go",
+          "image/codec.go",
+          "disk/heads.go",
+          "engine/views.go",
+          "view/handles.go"
+        ],
+        "functions": [
+          "Restore",
+          "checkedImage",
+          "Decode",
+          "Write",
+          "Hold",
+          "Resolve",
+          "materialize"
+        ]
+      }
+    },
+    {
+      "id": "recover-partial",
+      "task_type": "功能优化",
+      "capability_family": "启动恢复",
+      "subject": "namespace",
+      "state": "recovered",
+      "invariant": "数据目录现在遇到任何坏头都拒绝启动",
+      "observable": "受明确隔离约束时其余命名空间可安全恢复",
+      "primary_mechanism": "recovery_rollback",
+      "extension_seam_id": "reopen",
+      "workflow_ids": [
+        "restart"
+      ],
+      "source_anchors": [
+        "disk/heads.go",
+        "engine/database.go",
+        "index/postings.go",
+        "disk/directory.go",
+        "cmd/rillweaved/main.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "disk/heads.go",
+          "engine/database.go",
+          "index/postings.go",
+          "disk/directory.go",
+          "cmd/rillweaved/main.go"
+        ],
+        "functions": [
+          "RestoreHeads",
+          "acceptHead",
+          "BuildPostings",
+          "Open",
+          "run"
+        ]
+      }
+    },
+    {
+      "id": "catalog-compatibility",
+      "task_type": "功能优化",
+      "capability_family": "模式与约束",
+      "subject": "schema",
+      "state": "candidate",
+      "invariant": "模式和现有数据兼容性不等于与消费者兼容",
+      "observable": "发布时兼容性承诺可针对实际读契约被核查",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "rules",
+      "workflow_ids": [
+        "catalog",
+        "compare"
+      ],
+      "source_anchors": [
+        "catalog/rules.go",
+        "catalog/validate.go",
+        "change/edit.go",
+        "engine/views.go",
+        "change/diff.go",
+        "graph/model.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "catalog/rules.go",
+          "catalog/validate.go",
+          "change/edit.go",
+          "engine/views.go",
+          "change/diff.go",
+          "graph/model.go"
+        ],
+        "functions": [
+          "Rules",
+          "Validate",
+          "Prepare",
+          "pair",
+          "Compare",
+          "Graph"
+        ]
+      }
+    },
+    {
+      "id": "project-vertex-fields",
+      "task_type": "功能优化",
+      "capability_family": "版本读取",
+      "subject": "vertex",
+      "state": "selected",
+      "invariant": "点种类和属性存在性由所选版本解释",
+      "observable": "批量精确读可保存旧客户端语义",
+      "primary_mechanism": "snapshot_consistency",
+      "extension_seam_id": "ident",
+      "workflow_ids": [
+        "vertex",
+        "catalog"
+      ],
+      "source_anchors": [
+        "engine/queries.go",
+        "engine/views.go",
+        "graph/model.go",
+        "catalog/rules.go",
+        "catalog/validate.go",
+        "change/edit.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/queries.go",
+          "engine/views.go",
+          "graph/model.go",
+          "catalog/rules.go",
+          "catalog/validate.go",
+          "change/edit.go"
+        ],
+        "functions": [
+          "Vertex",
+          "read",
+          "Graph",
+          "Rules",
+          "Validate",
+          "Prepare"
+        ]
+      }
+    },
+    {
+      "id": "lookup-unions",
+      "task_type": "功能优化",
+      "capability_family": "类型化查询",
+      "subject": "posting",
+      "state": "selected",
+      "invariant": "标量相同与顶点身份相同是不同条件",
+      "observable": "集合查重后仍提供可解释的稳定计数",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "post",
+      "workflow_ids": [
+        "lookup"
+      ],
+      "source_anchors": [
+        "index/postings.go",
+        "catalog/rules.go",
+        "engine/queries.go",
+        "graph/scalar.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "index/postings.go",
+          "catalog/rules.go",
+          "engine/queries.go",
+          "graph/scalar.go"
+        ],
+        "functions": [
+          "Equal",
+          "LookupRule",
+          "Lookup",
+          "UnmarshalJSON"
+        ]
+      }
+    },
+    {
+      "id": "scoped-budgets",
+      "task_type": "功能优化",
+      "capability_family": "双向邻接",
+      "subject": "arc",
+      "state": "selected",
+      "invariant": "候选数包含类型未命中和重复检视",
+      "observable": "多根查询资源消耗与不可完成状态可对照",
+      "primary_mechanism": "ranking_reorder",
+      "extension_seam_id": "adj",
+      "workflow_ids": [
+        "adjacency",
+        "reach"
+      ],
+      "source_anchors": [
+        "index/adjacency.go",
+        "walk/reach.go",
+        "walk/options.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "index/adjacency.go",
+          "walk/reach.go",
+          "walk/options.go"
+        ],
+        "functions": [
+          "Visit",
+          "Adjacent",
+          "topologyFor",
+          "Reach",
+          "visit"
+        ]
+      }
+    },
+    {
+      "id": "catalog-view-identity",
+      "task_type": "功能优化",
+      "capability_family": "视图生命周期",
+      "subject": "handle",
+      "state": "held",
+      "invariant": "头和某一固定修订可能交替出现",
+      "observable": "条件读取能辨认图身份和精确修订而非误用缓存",
+      "primary_mechanism": "resource_lifecycle",
+      "extension_seam_id": "hold",
+      "workflow_ids": [
+        "pin",
+        "vertex"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "view/handles.go",
+        "engine/database.go",
+        "engine/queries.go",
+        "graph/model.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "view/handles.go",
+          "engine/database.go",
+          "engine/queries.go",
+          "graph/model.go"
+        ],
+        "functions": [
+          "Hold",
+          "Resolve",
+          "materialize",
+          "Vertex",
+          "read",
+          "Graph"
+        ]
+      }
+    },
+    {
+      "id": "remediation-pairs",
+      "task_type": "泛Agent需求",
+      "capability_family": "连通分解",
+      "subject": "component",
+      "state": "partitioned",
+      "invariant": "环组成员需要互相到达且影响有向传播",
+      "observable": "给下游交付每组的人工拆解优先证据",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "scc",
+      "workflow_ids": [
+        "components",
+        "reach"
+      ],
+      "source_anchors": [
+        "walk/components.go",
+        "index/adjacency.go",
+        "engine/queries.go",
+        "walk/reach.go",
+        "walk/options.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/components.go",
+          "index/adjacency.go",
+          "engine/queries.go",
+          "walk/reach.go",
+          "walk/options.go"
+        ],
+        "functions": [
+          "Components",
+          "Visit",
+          "Reach",
+          "visit"
+        ]
+      }
+    },
+    {
+      "id": "routing-distinctness",
+      "task_type": "泛Agent需求",
+      "capability_family": "代价路径",
+      "subject": "arc",
+      "state": "route",
+      "invariant": "同一端点对可有不同弧支撑",
+      "observable": "制作弧级共享风险的数据表",
+      "primary_mechanism": "ranking_reorder",
+      "extension_seam_id": "path",
+      "workflow_ids": [
+        "path",
+        "adjacency"
+      ],
+      "source_anchors": [
+        "walk/path.go",
+        "walk/options.go",
+        "engine/queries.go",
+        "index/adjacency.go",
+        "walk/reach.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/path.go",
+          "walk/options.go",
+          "engine/queries.go",
+          "index/adjacency.go",
+          "walk/reach.go"
+        ],
+        "functions": [
+          "Path",
+          "visit",
+          "Visit",
+          "Adjacent",
+          "topologyFor"
+        ]
+      }
+    },
+    {
+      "id": "schema-readiness",
+      "task_type": "泛Agent需求",
+      "capability_family": "模式与约束",
+      "subject": "schema",
+      "state": "candidate",
+      "invariant": "规则可安装不代表旧属性语义可继续使用",
+      "observable": "整理数据移交清单并解释不可替换项",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "rules",
+      "workflow_ids": [
+        "catalog",
+        "lookup"
+      ],
+      "source_anchors": [
+        "catalog/rules.go",
+        "catalog/validate.go",
+        "change/edit.go",
+        "index/postings.go",
+        "engine/queries.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "catalog/rules.go",
+          "catalog/validate.go",
+          "change/edit.go",
+          "index/postings.go",
+          "engine/queries.go"
+        ],
+        "functions": [
+          "Rules",
+          "Validate",
+          "Prepare",
+          "Equal",
+          "LookupRule",
+          "Lookup"
+        ]
+      }
+    },
+    {
+      "id": "backup-lineage-record",
+      "task_type": "泛Agent需求",
+      "capability_family": "导出与冻结",
+      "subject": "image",
+      "state": "encoded",
+      "invariant": "恢复后本地修订从一开始",
+      "observable": "建立源版本、内容和去向的镜像溯源记录",
+      "primary_mechanism": "export_freeze",
+      "extension_seam_id": "image",
+      "workflow_ids": [
+        "backup"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "image/codec.go",
+        "graph/model.go",
+        "engine/publish.go",
+        "engine/database.go",
+        "disk/heads.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "image/codec.go",
+          "graph/model.go",
+          "engine/publish.go",
+          "engine/database.go",
+          "disk/heads.go"
+        ],
+        "functions": [
+          "Export",
+          "Encode",
+          "Graph",
+          "Restore",
+          "checkedImage",
+          "Decode",
+          "Write"
+        ]
+      }
+    },
+    {
+      "id": "version-overlays",
+      "task_type": "泛Agent需求",
+      "capability_family": "版本差异",
+      "subject": "revision",
+      "state": "paired",
+      "invariant": "相同 ID 可跨版本更换属性和来向",
+      "observable": "交付同时标注新增、原位更新和丢失来源的图材料",
+      "primary_mechanism": "versioning_audit",
+      "extension_seam_id": "diff",
+      "workflow_ids": [
+        "compare",
+        "vertex"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "change/diff.go",
+        "graph/model.go",
+        "engine/queries.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "change/diff.go",
+          "graph/model.go",
+          "engine/queries.go"
+        ],
+        "functions": [
+          "pair",
+          "Compare",
+          "Graph",
+          "Vertex",
+          "read"
+        ]
+      }
+    },
+    {
+      "id": "generator-fixture-suite",
+      "task_type": "泛Agent需求",
+      "capability_family": "双向邻接",
+      "subject": "arc",
+      "state": "selected",
+      "invariant": "多弧和自环在不同查询下分别产生不同贡献",
+      "observable": "制作用于讲解的连通结构素材和可追溯标注",
+      "primary_mechanism": "ranking_reorder",
+      "extension_seam_id": "adj",
+      "workflow_ids": [
+        "adjacency",
+        "components"
+      ],
+      "source_anchors": [
+        "index/adjacency.go",
+        "walk/reach.go",
+        "walk/options.go",
+        "walk/components.go",
+        "engine/queries.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "index/adjacency.go",
+          "walk/reach.go",
+          "walk/options.go",
+          "walk/components.go",
+          "engine/queries.go"
+        ],
+        "functions": [
+          "Visit",
+          "Adjacent",
+          "topologyFor",
+          "Components"
+        ]
+      }
+    },
+    {
+      "id": "property-cohort-atlas",
+      "task_type": "泛Agent需求",
+      "capability_family": "类型化查询",
+      "subject": "posting",
+      "state": "selected",
+      "invariant": "缺失、零值、类型不匹配不可合并",
+      "observable": "给导数消费者制作顶点缺口映射",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "post",
+      "workflow_ids": [
+        "lookup"
+      ],
+      "source_anchors": [
+        "index/postings.go",
+        "catalog/rules.go",
+        "engine/queries.go",
+        "graph/scalar.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "index/postings.go",
+          "catalog/rules.go",
+          "engine/queries.go",
+          "graph/scalar.go"
+        ],
+        "functions": [
+          "Equal",
+          "LookupRule",
+          "Lookup",
+          "UnmarshalJSON"
+        ]
+      }
+    },
+    {
+      "id": "handoff-graph-envelope",
+      "task_type": "泛Agent需求",
+      "capability_family": "导出与冻结",
+      "subject": "image",
+      "state": "encoded",
+      "invariant": "摘要只能证明相同负载",
+      "observable": "产出可移交的图资料包及可审阅删减边界",
+      "primary_mechanism": "export_freeze",
+      "extension_seam_id": "image",
+      "workflow_ids": [
+        "backup",
+        "catalog"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "image/codec.go",
+        "graph/model.go",
+        "catalog/rules.go",
+        "catalog/validate.go",
+        "change/edit.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "image/codec.go",
+          "graph/model.go",
+          "catalog/rules.go",
+          "catalog/validate.go",
+          "change/edit.go"
+        ],
+        "functions": [
+          "Export",
+          "Encode",
+          "Graph",
+          "Rules",
+          "Validate",
+          "Prepare"
+        ]
+      }
+    },
+    {
+      "id": "reachability-record",
+      "task_type": "泛Agent需求",
+      "capability_family": "有向可达",
+      "subject": "vertex",
+      "state": "frontier",
+      "invariant": "同一请求有版本和方向边界",
+      "observable": "为团队生成跨版本消费者变化凭据",
+      "primary_mechanism": "capacity",
+      "extension_seam_id": "reach",
+      "workflow_ids": [
+        "reach",
+        "pin"
+      ],
+      "source_anchors": [
+        "walk/reach.go",
+        "walk/options.go",
+        "index/adjacency.go",
+        "engine/views.go",
+        "view/handles.go",
+        "engine/database.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/reach.go",
+          "walk/options.go",
+          "index/adjacency.go",
+          "engine/views.go",
+          "view/handles.go",
+          "engine/database.go"
+        ],
+        "functions": [
+          "Reach",
+          "visit",
+          "Visit",
+          "Hold",
+          "Resolve",
+          "materialize"
+        ]
+      }
+    },
+    {
+      "id": "closure-data-products",
+      "task_type": "泛Agent需求",
+      "capability_family": "有向可达",
+      "subject": "vertex",
+      "state": "frontier",
+      "invariant": "可达关系与直接关系不可混存",
+      "observable": "输出带远近关系来源的独立分析数据",
+      "primary_mechanism": "capacity",
+      "extension_seam_id": "reach",
+      "workflow_ids": [
+        "reach",
+        "adjacency"
+      ],
+      "source_anchors": [
+        "walk/reach.go",
+        "walk/options.go",
+        "index/adjacency.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/reach.go",
+          "walk/options.go",
+          "index/adjacency.go"
+        ],
+        "functions": [
+          "Reach",
+          "visit",
+          "Visit",
+          "Adjacent",
+          "topologyFor"
+        ]
+      }
+    },
+    {
+      "id": "perimeter-sheets",
+      "task_type": "泛Agent需求",
+      "capability_family": "双向邻接",
+      "subject": "arc",
+      "state": "selected",
+      "invariant": "存在的顶点可能没有相应邻接",
+      "observable": "为外部团队制作边界交接表",
+      "primary_mechanism": "ranking_reorder",
+      "extension_seam_id": "adj",
+      "workflow_ids": [
+        "adjacency",
+        "vertex"
+      ],
+      "source_anchors": [
+        "index/adjacency.go",
+        "walk/reach.go",
+        "walk/options.go",
+        "engine/queries.go",
+        "engine/views.go",
+        "graph/model.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "index/adjacency.go",
+          "walk/reach.go",
+          "walk/options.go",
+          "engine/queries.go",
+          "engine/views.go",
+          "graph/model.go"
+        ],
+        "functions": [
+          "Visit",
+          "Adjacent",
+          "topologyFor",
+          "Vertex",
+          "read",
+          "Graph"
+        ]
+      }
+    },
+    {
+      "id": "revision-storyboard",
+      "task_type": "泛Agent需求",
+      "capability_family": "版本差异",
+      "subject": "revision",
+      "state": "paired",
+      "invariant": "一次接受变更和发行标号是不同维度",
+      "observable": "提供跨图快照可区分的演进材料",
+      "primary_mechanism": "versioning_audit",
+      "extension_seam_id": "diff",
+      "workflow_ids": [
+        "compare",
+        "backup"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "change/diff.go",
+        "graph/model.go",
+        "image/codec.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "change/diff.go",
+          "graph/model.go",
+          "image/codec.go"
+        ],
+        "functions": [
+          "pair",
+          "Compare",
+          "Graph",
+          "Export",
+          "Encode"
+        ]
+      }
+    },
+    {
+      "id": "lookup-calibration",
+      "task_type": "泛Agent需求",
+      "capability_family": "类型化查询",
+      "subject": "posting",
+      "state": "selected",
+      "invariant": "目录合法不保证属性对数据分桶有意义",
+      "observable": "从实际分布构造下游实体匹配样本",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "post",
+      "workflow_ids": [
+        "lookup",
+        "catalog"
+      ],
+      "source_anchors": [
+        "index/postings.go",
+        "catalog/rules.go",
+        "engine/queries.go",
+        "catalog/validate.go",
+        "change/edit.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "index/postings.go",
+          "catalog/rules.go",
+          "engine/queries.go",
+          "catalog/validate.go",
+          "change/edit.go"
+        ],
+        "functions": [
+          "Equal",
+          "LookupRule",
+          "Lookup",
+          "Rules",
+          "Validate",
+          "Prepare"
+        ]
+      }
+    },
+    {
+      "id": "arc-cost-books",
+      "task_type": "泛Agent需求",
+      "capability_family": "代价路径",
+      "subject": "arc",
+      "state": "route",
+      "invariant": "跳数最小和代价最小要分别取证",
+      "observable": "生成边界条件下的成本阈值记录",
+      "primary_mechanism": "ranking_reorder",
+      "extension_seam_id": "path",
+      "workflow_ids": [
+        "path",
+        "lookup"
+      ],
+      "source_anchors": [
+        "walk/path.go",
+        "walk/options.go",
+        "engine/queries.go",
+        "graph/scalar.go",
+        "catalog/rules.go",
+        "index/postings.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/path.go",
+          "walk/options.go",
+          "engine/queries.go",
+          "graph/scalar.go",
+          "catalog/rules.go",
+          "index/postings.go"
+        ],
+        "functions": [
+          "Path",
+          "visit",
+          "UnmarshalJSON",
+          "LookupRule",
+          "Equal"
+        ]
+      }
+    },
+    {
+      "id": "install-attribution",
+      "task_type": "泛Agent需求",
+      "capability_family": "镜像恢复",
+      "subject": "namespace",
+      "state": "verified",
+      "invariant": "重启以本地名称和文件内容同时判定持久图",
+      "observable": "提供可迁移数据来源的交付凭单",
+      "primary_mechanism": "recovery_rollback",
+      "extension_seam_id": "restore",
+      "workflow_ids": [
+        "backup",
+        "restart"
+      ],
+      "source_anchors": [
+        "engine/publish.go",
+        "engine/database.go",
+        "image/codec.go",
+        "disk/heads.go",
+        "index/postings.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/publish.go",
+          "engine/database.go",
+          "image/codec.go",
+          "disk/heads.go",
+          "index/postings.go"
+        ],
+        "functions": [
+          "Restore",
+          "checkedImage",
+          "Decode",
+          "Write",
+          "RestoreHeads",
+          "acceptHead",
+          "BuildPostings"
+        ]
+      }
+    },
+    {
+      "id": "publication-boundary",
+      "task_type": "代码重构",
+      "capability_family": "并发与锁",
+      "subject": "revision",
+      "state": "validated",
+      "invariant": "合法候选和持久发布结果是两层判断",
+      "observable": "内部接口隔开候选和失败后的头可见性",
+      "primary_mechanism": "concurrency",
+      "extension_seam_id": "publish",
+      "workflow_ids": [
+        "commit"
+      ],
+      "source_anchors": [
+        "engine/publish.go",
+        "disk/heads.go",
+        "engine/database.go",
+        "catalog/validate.go",
+        "change/edit.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/publish.go",
+          "disk/heads.go",
+          "engine/database.go",
+          "catalog/validate.go",
+          "change/edit.go"
+        ],
+        "functions": [
+          "publish",
+          "Write",
+          "materialize",
+          "Validate",
+          "Prepare",
+          "Commit"
+        ]
+      }
+    },
+    {
+      "id": "view-lease-boundary",
+      "task_type": "代码重构",
+      "capability_family": "视图生命周期",
+      "subject": "handle",
+      "state": "held",
+      "invariant": "同一个读根可同时走多个读值形态",
+      "observable": "固定快照解析在重构后语义相同",
+      "primary_mechanism": "resource_lifecycle",
+      "extension_seam_id": "hold",
+      "workflow_ids": [
+        "pin",
+        "compare"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "view/handles.go",
+        "engine/database.go",
+        "change/diff.go",
+        "graph/model.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "view/handles.go",
+          "engine/database.go",
+          "change/diff.go",
+          "graph/model.go"
+        ],
+        "functions": [
+          "Hold",
+          "Resolve",
+          "materialize",
+          "pair",
+          "Compare",
+          "Graph"
+        ]
+      }
+    },
+    {
+      "id": "typed-posting-boundary",
+      "task_type": "代码重构",
+      "capability_family": "类型化查询",
+      "subject": "posting",
+      "state": "selected",
+      "invariant": "模式先约束标量，再查询索引",
+      "observable": "替换其中一层不改变读契约",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "post",
+      "workflow_ids": [
+        "lookup"
+      ],
+      "source_anchors": [
+        "index/postings.go",
+        "catalog/rules.go",
+        "engine/queries.go",
+        "graph/scalar.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "index/postings.go",
+          "catalog/rules.go",
+          "engine/queries.go",
+          "graph/scalar.go"
+        ],
+        "functions": [
+          "Equal",
+          "LookupRule",
+          "Lookup",
+          "UnmarshalJSON"
+        ]
+      }
+    },
+    {
+      "id": "frontier-core",
+      "task_type": "代码重构",
+      "capability_family": "有向可达",
+      "subject": "vertex",
+      "state": "frontier",
+      "invariant": "候选检查先计入预算再过滤类型",
+      "observable": "多个遍历器共享预算且不混淆返回语义",
+      "primary_mechanism": "capacity",
+      "extension_seam_id": "reach",
+      "workflow_ids": [
+        "reach",
+        "adjacency"
+      ],
+      "source_anchors": [
+        "walk/reach.go",
+        "walk/options.go",
+        "index/adjacency.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/reach.go",
+          "walk/options.go",
+          "index/adjacency.go"
+        ],
+        "functions": [
+          "Reach",
+          "visit",
+          "Visit",
+          "Adjacent",
+          "topologyFor"
+        ]
+      }
+    },
+    {
+      "id": "path-label-domain",
+      "task_type": "代码重构",
+      "capability_family": "代价路径",
+      "subject": "arc",
+      "state": "route",
+      "invariant": "每个精确深度的候选需独立比较",
+      "observable": "排序策略与状态演进分开且路径不变",
+      "primary_mechanism": "ranking_reorder",
+      "extension_seam_id": "path",
+      "workflow_ids": [
+        "path",
+        "adjacency"
+      ],
+      "source_anchors": [
+        "walk/path.go",
+        "walk/options.go",
+        "engine/queries.go",
+        "index/adjacency.go",
+        "walk/reach.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/path.go",
+          "walk/options.go",
+          "engine/queries.go",
+          "index/adjacency.go",
+          "walk/reach.go"
+        ],
+        "functions": [
+          "Path",
+          "visit",
+          "Visit",
+          "Adjacent",
+          "topologyFor"
+        ]
+      }
+    },
+    {
+      "id": "catalog-ownership",
+      "task_type": "代码重构",
+      "capability_family": "模式与约束",
+      "subject": "schema",
+      "state": "candidate",
+      "invariant": "最终模式校验不可降为逐编辑校验",
+      "observable": "目录判定与变更解释责任分清",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "rules",
+      "workflow_ids": [
+        "catalog",
+        "commit"
+      ],
+      "source_anchors": [
+        "catalog/rules.go",
+        "catalog/validate.go",
+        "change/edit.go",
+        "engine/publish.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "catalog/rules.go",
+          "catalog/validate.go",
+          "change/edit.go",
+          "engine/publish.go"
+        ],
+        "functions": [
+          "Rules",
+          "Validate",
+          "Prepare",
+          "Commit"
+        ]
+      }
+    },
+    {
+      "id": "image-acceptance",
+      "task_type": "代码重构",
+      "capability_family": "镜像恢复",
+      "subject": "namespace",
+      "state": "verified",
+      "invariant": "恢复身份和导入身份不同",
+      "observable": "共用验证的内部入口仍区别发布策略",
+      "primary_mechanism": "recovery_rollback",
+      "extension_seam_id": "restore",
+      "workflow_ids": [
+        "backup",
+        "restart"
+      ],
+      "source_anchors": [
+        "engine/publish.go",
+        "engine/database.go",
+        "image/codec.go",
+        "disk/heads.go",
+        "index/postings.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/publish.go",
+          "engine/database.go",
+          "image/codec.go",
+          "disk/heads.go",
+          "index/postings.go"
+        ],
+        "functions": [
+          "Restore",
+          "checkedImage",
+          "Decode",
+          "Write",
+          "RestoreHeads",
+          "acceptHead",
+          "BuildPostings"
+        ]
+      }
+    },
+    {
+      "id": "directory-handle",
+      "task_type": "代码重构",
+      "capability_family": "并发与锁",
+      "subject": "directory",
+      "state": "owned",
+      "invariant": "整个停机期间锁约束后台写入",
+      "observable": "目录生命周期变为独立所有权对象",
+      "primary_mechanism": "concurrency",
+      "extension_seam_id": "lock",
+      "workflow_ids": [
+        "restart"
+      ],
+      "source_anchors": [
+        "disk/directory.go",
+        "cmd/rillweaved/main.go",
+        "engine/database.go",
+        "disk/heads.go",
+        "index/postings.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "disk/directory.go",
+          "cmd/rillweaved/main.go",
+          "engine/database.go",
+          "disk/heads.go",
+          "index/postings.go"
+        ],
+        "functions": [
+          "Open",
+          "run",
+          "RestoreHeads",
+          "acceptHead",
+          "BuildPostings"
+        ]
+      }
+    },
+    {
+      "id": "query-state",
+      "task_type": "代码重构",
+      "capability_family": "版本读取",
+      "subject": "vertex",
+      "state": "selected",
+      "invariant": "选中视图后不得混用另一版的索引",
+      "observable": "读取模型独立于可变目录",
+      "primary_mechanism": "snapshot_consistency",
+      "extension_seam_id": "ident",
+      "workflow_ids": [
+        "vertex",
+        "lookup"
+      ],
+      "source_anchors": [
+        "engine/queries.go",
+        "engine/views.go",
+        "graph/model.go",
+        "index/postings.go",
+        "catalog/rules.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/queries.go",
+          "engine/views.go",
+          "graph/model.go",
+          "index/postings.go",
+          "catalog/rules.go"
+        ],
+        "functions": [
+          "Vertex",
+          "read",
+          "Graph",
+          "Equal",
+          "LookupRule",
+          "Lookup"
+        ]
+      }
+    },
+    {
+      "id": "condensation-internal",
+      "task_type": "代码重构",
+      "capability_family": "连通分解",
+      "subject": "component",
+      "state": "partitioned",
+      "invariant": "分组过程和跨组链接重复检查保留计费",
+      "observable": "单独管理组件成员抽象不改变查询",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "scc",
+      "workflow_ids": [
+        "components",
+        "adjacency"
+      ],
+      "source_anchors": [
+        "walk/components.go",
+        "index/adjacency.go",
+        "engine/queries.go",
+        "walk/reach.go",
+        "walk/options.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/components.go",
+          "index/adjacency.go",
+          "engine/queries.go",
+          "walk/reach.go",
+          "walk/options.go"
+        ],
+        "functions": [
+          "Components",
+          "Visit",
+          "Adjacent",
+          "topologyFor"
+        ]
+      }
+    },
+    {
+      "id": "format-and-protocol",
+      "task_type": "代码重构",
+      "capability_family": "导出与冻结",
+      "subject": "image",
+      "state": "encoded",
+      "invariant": "镜像严格解码与 HTTP 上界不同",
+      "observable": "替换协议装配而不更改格式一",
+      "primary_mechanism": "export_freeze",
+      "extension_seam_id": "image",
+      "workflow_ids": [
+        "backup",
+        "lookup"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "image/codec.go",
+        "graph/model.go",
+        "graph/scalar.go",
+        "catalog/rules.go",
+        "index/postings.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "image/codec.go",
+          "graph/model.go",
+          "graph/scalar.go",
+          "catalog/rules.go",
+          "index/postings.go"
+        ],
+        "functions": [
+          "Export",
+          "Encode",
+          "Graph",
+          "UnmarshalJSON",
+          "LookupRule",
+          "Equal"
+        ]
+      }
+    },
+    {
+      "id": "scope-error-boundary",
+      "task_type": "代码重构",
+      "capability_family": "视图生命周期",
+      "subject": "handle",
+      "state": "held",
+      "invariant": "运行性失败和查无此视图不同",
+      "observable": "在服务边界统一错误而不泄漏磁盘细节",
+      "primary_mechanism": "resource_lifecycle",
+      "extension_seam_id": "hold",
+      "workflow_ids": [
+        "pin",
+        "restart"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "view/handles.go",
+        "engine/database.go",
+        "disk/directory.go",
+        "cmd/rillweaved/main.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "view/handles.go",
+          "engine/database.go",
+          "disk/directory.go",
+          "cmd/rillweaved/main.go"
+        ],
+        "functions": [
+          "Hold",
+          "Resolve",
+          "materialize",
+          "Open",
+          "run"
+        ]
+      }
+    },
+    {
+      "id": "canonical-equality",
+      "task_type": "代码重构",
+      "capability_family": "版本差异",
+      "subject": "revision",
+      "state": "paired",
+      "invariant": "不同的空映射编码不表示数据变化",
+      "observable": "实体等价判定明确定义在领域层",
+      "primary_mechanism": "versioning_audit",
+      "extension_seam_id": "diff",
+      "workflow_ids": [
+        "compare",
+        "lookup"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "change/diff.go",
+        "graph/model.go",
+        "graph/scalar.go",
+        "catalog/rules.go",
+        "index/postings.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "change/diff.go",
+          "graph/model.go",
+          "graph/scalar.go",
+          "catalog/rules.go",
+          "index/postings.go"
+        ],
+        "functions": [
+          "pair",
+          "Compare",
+          "Graph",
+          "UnmarshalJSON",
+          "LookupRule",
+          "Equal"
+        ]
+      }
+    },
+    {
+      "id": "publish-recovery-root",
+      "task_type": "代码重构",
+      "capability_family": "启动恢复",
+      "subject": "namespace",
+      "state": "recovered",
+      "invariant": "内存派生态只来源于成功接受的图",
+      "observable": "重开和发布共享最少而正确的建模职责",
+      "primary_mechanism": "recovery_rollback",
+      "extension_seam_id": "reopen",
+      "workflow_ids": [
+        "restart",
+        "commit"
+      ],
+      "source_anchors": [
+        "disk/heads.go",
+        "engine/database.go",
+        "index/postings.go",
+        "engine/publish.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "disk/heads.go",
+          "engine/database.go",
+          "index/postings.go",
+          "engine/publish.go"
+        ],
+        "functions": [
+          "RestoreHeads",
+          "acceptHead",
+          "BuildPostings",
+          "publish",
+          "Write",
+          "materialize"
+        ]
+      }
+    },
+    {
+      "id": "direction-order",
+      "task_type": "代码重构",
+      "capability_family": "双向邻接",
+      "subject": "arc",
+      "state": "selected",
+      "invariant": "弧输出顺序决定平行弧见证稳定性",
+      "observable": "方向合并从拓扑消费者解耦",
+      "primary_mechanism": "ranking_reorder",
+      "extension_seam_id": "adj",
+      "workflow_ids": [
+        "adjacency",
+        "path"
+      ],
+      "source_anchors": [
+        "index/adjacency.go",
+        "walk/reach.go",
+        "walk/options.go",
+        "walk/path.go",
+        "engine/queries.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "index/adjacency.go",
+          "walk/reach.go",
+          "walk/options.go",
+          "walk/path.go",
+          "engine/queries.go"
+        ],
+        "functions": [
+          "Visit",
+          "Adjacent",
+          "topologyFor",
+          "Path",
+          "visit"
+        ]
+      }
+    },
+    {
+      "id": "format-two",
+      "task_type": "依赖升级与迁移",
+      "capability_family": "导出与冻结",
+      "subject": "image",
+      "state": "encoded",
+      "invariant": "旧文件有实际可生成的格式一数据",
+      "observable": "混合新旧持久格式均可开库",
+      "primary_mechanism": "export_freeze",
+      "extension_seam_id": "image",
+      "workflow_ids": [
+        "backup",
+        "restart"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "image/codec.go",
+        "graph/model.go",
+        "disk/heads.go",
+        "engine/database.go",
+        "index/postings.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "image/codec.go",
+          "graph/model.go",
+          "disk/heads.go",
+          "engine/database.go",
+          "index/postings.go"
+        ],
+        "functions": [
+          "Export",
+          "Encode",
+          "Graph",
+          "RestoreHeads",
+          "acceptHead",
+          "BuildPostings"
+        ]
+      }
+    },
+    {
+      "id": "grouped-arc-image",
+      "task_type": "依赖升级与迁移",
+      "capability_family": "镜像恢复",
+      "subject": "namespace",
+      "state": "verified",
+      "invariant": "弧 ID 独立于端点对且自环只有一份",
+      "observable": "按端点分组的镜像不丢实体",
+      "primary_mechanism": "recovery_rollback",
+      "extension_seam_id": "restore",
+      "workflow_ids": [
+        "backup",
+        "adjacency"
+      ],
+      "source_anchors": [
+        "engine/publish.go",
+        "engine/database.go",
+        "image/codec.go",
+        "disk/heads.go",
+        "index/adjacency.go",
+        "walk/reach.go",
+        "walk/options.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/publish.go",
+          "engine/database.go",
+          "image/codec.go",
+          "disk/heads.go",
+          "index/adjacency.go",
+          "walk/reach.go",
+          "walk/options.go"
+        ],
+        "functions": [
+          "Restore",
+          "checkedImage",
+          "Decode",
+          "Write",
+          "Visit",
+          "Adjacent",
+          "topologyFor"
+        ]
+      }
+    },
+    {
+      "id": "namespace-layout",
+      "task_type": "依赖升级与迁移",
+      "capability_family": "启动恢复",
+      "subject": "namespace",
+      "state": "recovered",
+      "invariant": "落盘名称与负载名称必须相符",
+      "observable": "换目录布局保留持久头和排他性",
+      "primary_mechanism": "recovery_rollback",
+      "extension_seam_id": "reopen",
+      "workflow_ids": [
+        "restart"
+      ],
+      "source_anchors": [
+        "disk/heads.go",
+        "engine/database.go",
+        "index/postings.go",
+        "disk/directory.go",
+        "cmd/rillweaved/main.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "disk/heads.go",
+          "engine/database.go",
+          "index/postings.go",
+          "disk/directory.go",
+          "cmd/rillweaved/main.go"
+        ],
+        "functions": [
+          "RestoreHeads",
+          "acceptHead",
+          "BuildPostings",
+          "Open",
+          "run"
+        ]
+      }
+    },
+    {
+      "id": "namespaced-route",
+      "task_type": "依赖升级与迁移",
+      "capability_family": "版本读取",
+      "subject": "vertex",
+      "state": "selected",
+      "invariant": "固定视图属于图，API 路由负责承载图名",
+      "observable": "双版本入口不误路由已持有视图",
+      "primary_mechanism": "snapshot_consistency",
+      "extension_seam_id": "ident",
+      "workflow_ids": [
+        "vertex",
+        "pin"
+      ],
+      "source_anchors": [
+        "engine/queries.go",
+        "engine/views.go",
+        "graph/model.go",
+        "view/handles.go",
+        "engine/database.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/queries.go",
+          "engine/views.go",
+          "graph/model.go",
+          "view/handles.go",
+          "engine/database.go"
+        ],
+        "functions": [
+          "Vertex",
+          "read",
+          "Graph",
+          "Hold",
+          "Resolve",
+          "materialize"
+        ]
+      }
+    },
+    {
+      "id": "scalar-tag-format",
+      "task_type": "依赖升级与迁移",
+      "capability_family": "标量与类型",
+      "subject": "scalar",
+      "state": "decoded",
+      "invariant": "有符号整数无损，缺失不等于可编码值",
+      "observable": "跨旧原生标量和新标签表示结果相同",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "scalar",
+      "workflow_ids": [
+        "lookup",
+        "backup"
+      ],
+      "source_anchors": [
+        "graph/scalar.go",
+        "catalog/rules.go",
+        "index/postings.go",
+        "engine/views.go",
+        "image/codec.go",
+        "graph/model.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "graph/scalar.go",
+          "catalog/rules.go",
+          "index/postings.go",
+          "engine/views.go",
+          "image/codec.go",
+          "graph/model.go"
+        ],
+        "functions": [
+          "UnmarshalJSON",
+          "LookupRule",
+          "Equal",
+          "Export",
+          "Encode",
+          "Graph"
+        ]
+      }
+    },
+    {
+      "id": "catalog-dictionary",
+      "task_type": "依赖升级与迁移",
+      "capability_family": "模式与约束",
+      "subject": "schema",
+      "state": "candidate",
+      "invariant": "点弧种类对应明确属性和端点规则",
+      "observable": "迁移后兼容性验证结果保持一致",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "rules",
+      "workflow_ids": [
+        "catalog",
+        "backup"
+      ],
+      "source_anchors": [
+        "catalog/rules.go",
+        "catalog/validate.go",
+        "change/edit.go",
+        "engine/views.go",
+        "image/codec.go",
+        "graph/model.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "catalog/rules.go",
+          "catalog/validate.go",
+          "change/edit.go",
+          "engine/views.go",
+          "image/codec.go",
+          "graph/model.go"
+        ],
+        "functions": [
+          "Rules",
+          "Validate",
+          "Prepare",
+          "Export",
+          "Encode",
+          "Graph"
+        ]
+      }
+    },
+    {
+      "id": "disk-target",
+      "task_type": "依赖升级与迁移",
+      "capability_family": "并发与锁",
+      "subject": "revision",
+      "state": "validated",
+      "invariant": "持久替换成功才发布头",
+      "observable": "可逆切换存储实现不降级确认语义",
+      "primary_mechanism": "concurrency",
+      "extension_seam_id": "publish",
+      "workflow_ids": [
+        "commit",
+        "restart"
+      ],
+      "source_anchors": [
+        "engine/publish.go",
+        "disk/heads.go",
+        "engine/database.go",
+        "index/postings.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/publish.go",
+          "disk/heads.go",
+          "engine/database.go",
+          "index/postings.go"
+        ],
+        "functions": [
+          "publish",
+          "Write",
+          "materialize",
+          "RestoreHeads",
+          "acceptHead",
+          "BuildPostings"
+        ]
+      }
+    },
+    {
+      "id": "query-interface",
+      "task_type": "依赖升级与迁移",
+      "capability_family": "双向邻接",
+      "subject": "arc",
+      "state": "selected",
+      "invariant": "两方向返回的路径见证沿查询方向",
+      "observable": "迁移查询选择模型兼容旧方向参数",
+      "primary_mechanism": "ranking_reorder",
+      "extension_seam_id": "adj",
+      "workflow_ids": [
+        "adjacency",
+        "path"
+      ],
+      "source_anchors": [
+        "index/adjacency.go",
+        "walk/reach.go",
+        "walk/options.go",
+        "walk/path.go",
+        "engine/queries.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "index/adjacency.go",
+          "walk/reach.go",
+          "walk/options.go",
+          "walk/path.go",
+          "engine/queries.go"
+        ],
+        "functions": [
+          "Visit",
+          "Adjacent",
+          "topologyFor",
+          "Path",
+          "visit"
+        ]
+      }
+    },
+    {
+      "id": "manifest-provenance",
+      "task_type": "依赖升级与迁移",
+      "capability_family": "镜像恢复",
+      "subject": "namespace",
+      "state": "verified",
+      "invariant": "源与安装后修订并不相同",
+      "observable": "迁移导入回执保留双重身份",
+      "primary_mechanism": "recovery_rollback",
+      "extension_seam_id": "restore",
+      "workflow_ids": [
+        "backup"
+      ],
+      "source_anchors": [
+        "engine/publish.go",
+        "engine/database.go",
+        "image/codec.go",
+        "disk/heads.go",
+        "engine/views.go",
+        "graph/model.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/publish.go",
+          "engine/database.go",
+          "image/codec.go",
+          "disk/heads.go",
+          "engine/views.go",
+          "graph/model.go"
+        ],
+        "functions": [
+          "Restore",
+          "checkedImage",
+          "Decode",
+          "Write",
+          "Export",
+          "Encode",
+          "Graph"
+        ]
+      }
+    },
+    {
+      "id": "snapshot-token-shape",
+      "task_type": "依赖升级与迁移",
+      "capability_family": "视图生命周期",
+      "subject": "handle",
+      "state": "held",
+      "invariant": "旧 pin 在各 API 中跨操作使用",
+      "observable": "并行令牌格式可在旧客户端读取时受控退役",
+      "primary_mechanism": "resource_lifecycle",
+      "extension_seam_id": "hold",
+      "workflow_ids": [
+        "pin",
+        "compare"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "view/handles.go",
+        "engine/database.go",
+        "change/diff.go",
+        "graph/model.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "view/handles.go",
+          "engine/database.go",
+          "change/diff.go",
+          "graph/model.go"
+        ],
+        "functions": [
+          "Hold",
+          "Resolve",
+          "materialize",
+          "pair",
+          "Compare",
+          "Graph"
+        ]
+      }
+    },
+    {
+      "id": "vertex-row-layout",
+      "task_type": "依赖升级与迁移",
+      "capability_family": "类型化查询",
+      "subject": "posting",
+      "state": "selected",
+      "invariant": "损失空串与缺失差异会错误重建倒排",
+      "observable": "新行编码保持类型化查询结果",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "post",
+      "workflow_ids": [
+        "lookup"
+      ],
+      "source_anchors": [
+        "index/postings.go",
+        "catalog/rules.go",
+        "engine/queries.go",
+        "graph/scalar.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "index/postings.go",
+          "catalog/rules.go",
+          "engine/queries.go",
+          "graph/scalar.go"
+        ],
+        "functions": [
+          "Equal",
+          "LookupRule",
+          "Lookup",
+          "UnmarshalJSON"
+        ]
+      }
+    },
+    {
+      "id": "head-inventory",
+      "task_type": "依赖升级与迁移",
+      "capability_family": "启动恢复",
+      "subject": "namespace",
+      "state": "recovered",
+      "invariant": "完整损坏和临时遗留不能用同一动作处理",
+      "observable": "旧目录从显式清单迁入新布局",
+      "primary_mechanism": "recovery_rollback",
+      "extension_seam_id": "reopen",
+      "workflow_ids": [
+        "restart",
+        "backup"
+      ],
+      "source_anchors": [
+        "disk/heads.go",
+        "engine/database.go",
+        "index/postings.go",
+        "engine/views.go",
+        "image/codec.go",
+        "graph/model.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "disk/heads.go",
+          "engine/database.go",
+          "index/postings.go",
+          "engine/views.go",
+          "image/codec.go",
+          "graph/model.go"
+        ],
+        "functions": [
+          "RestoreHeads",
+          "acceptHead",
+          "BuildPostings",
+          "Export",
+          "Encode",
+          "Graph"
+        ]
+      }
+    },
+    {
+      "id": "snapshot-transport",
+      "task_type": "依赖升级与迁移",
+      "capability_family": "导出与冻结",
+      "subject": "image",
+      "state": "encoded",
+      "invariant": "镜像须来自一个修订且摘要基于实际字节",
+      "observable": "旧信封与新传输表达可相互置换",
+      "primary_mechanism": "export_freeze",
+      "extension_seam_id": "image",
+      "workflow_ids": [
+        "backup",
+        "pin"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "image/codec.go",
+        "graph/model.go",
+        "view/handles.go",
+        "engine/database.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "image/codec.go",
+          "graph/model.go",
+          "view/handles.go",
+          "engine/database.go"
+        ],
+        "functions": [
+          "Export",
+          "Encode",
+          "Graph",
+          "Hold",
+          "Resolve",
+          "materialize"
+        ]
+      }
+    },
+    {
+      "id": "edit-envelope",
+      "task_type": "依赖升级与迁移",
+      "capability_family": "原子图编辑",
+      "subject": "vertex",
+      "state": "candidate",
+      "invariant": "完整编辑顺序受初始基版本与最终验证约束",
+      "observable": "新变更格式接受旧客户端整组编辑",
+      "primary_mechanism": "batch_transaction",
+      "extension_seam_id": "unique",
+      "workflow_ids": [
+        "commit",
+        "catalog"
+      ],
+      "source_anchors": [
+        "catalog/validate.go",
+        "change/edit.go",
+        "engine/publish.go",
+        "catalog/rules.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "catalog/validate.go",
+          "change/edit.go",
+          "engine/publish.go",
+          "catalog/rules.go"
+        ],
+        "functions": [
+          "Validate",
+          "Prepare",
+          "Commit",
+          "Rules"
+        ]
+      }
+    },
+    {
+      "id": "compare-wire-shape",
+      "task_type": "依赖升级与迁移",
+      "capability_family": "版本差异",
+      "subject": "revision",
+      "state": "paired",
+      "invariant": "实体按纪元内键解释变化且旧消费者观察列表",
+      "observable": "并行旧差异表示和新事件表示",
+      "primary_mechanism": "versioning_audit",
+      "extension_seam_id": "diff",
+      "workflow_ids": [
+        "compare",
+        "vertex"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "change/diff.go",
+        "graph/model.go",
+        "engine/queries.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "change/diff.go",
+          "graph/model.go",
+          "engine/queries.go"
+        ],
+        "functions": [
+          "pair",
+          "Compare",
+          "Graph",
+          "Vertex",
+          "read"
+        ]
+      }
+    },
+    {
+      "id": "path-oracle",
+      "task_type": "质量保障",
+      "capability_family": "代价路径",
+      "subject": "arc",
+      "state": "route",
+      "invariant": "预算、最优值和无路是不同结果",
+      "observable": "独立小图参考发现层数与平行弧的判定错误",
+      "primary_mechanism": "ranking_reorder",
+      "extension_seam_id": "path",
+      "workflow_ids": [
+        "path",
+        "adjacency"
+      ],
+      "source_anchors": [
+        "walk/path.go",
+        "walk/options.go",
+        "engine/queries.go",
+        "index/adjacency.go",
+        "walk/reach.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/path.go",
+          "walk/options.go",
+          "engine/queries.go",
+          "index/adjacency.go",
+          "walk/reach.go"
+        ],
+        "functions": [
+          "Path",
+          "visit",
+          "Visit",
+          "Adjacent",
+          "topologyFor"
+        ]
+      }
+    },
+    {
+      "id": "commit-model",
+      "task_type": "质量保障",
+      "capability_family": "原子图编辑",
+      "subject": "vertex",
+      "state": "candidate",
+      "invariant": "最终状态通过与重启可见性相依",
+      "observable": "操作序列发现偏离原子性和恢复承诺",
+      "primary_mechanism": "batch_transaction",
+      "extension_seam_id": "unique",
+      "workflow_ids": [
+        "commit",
+        "restart"
+      ],
+      "source_anchors": [
+        "catalog/validate.go",
+        "change/edit.go",
+        "engine/publish.go",
+        "disk/heads.go",
+        "engine/database.go",
+        "index/postings.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "catalog/validate.go",
+          "change/edit.go",
+          "engine/publish.go",
+          "disk/heads.go",
+          "engine/database.go",
+          "index/postings.go"
+        ],
+        "functions": [
+          "Validate",
+          "Prepare",
+          "Commit",
+          "RestoreHeads",
+          "acceptHead",
+          "BuildPostings"
+        ]
+      }
+    },
+    {
+      "id": "hold-concurrent-proof",
+      "task_type": "质量保障",
+      "capability_family": "视图生命周期",
+      "subject": "handle",
+      "state": "held",
+      "invariant": "读根一旦解析不受后续写和释放影响",
+      "observable": "跨接口证据辨认混合读版本",
+      "primary_mechanism": "resource_lifecycle",
+      "extension_seam_id": "hold",
+      "workflow_ids": [
+        "pin",
+        "commit"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "view/handles.go",
+        "engine/database.go",
+        "engine/publish.go",
+        "disk/heads.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "view/handles.go",
+          "engine/database.go",
+          "engine/publish.go",
+          "disk/heads.go"
+        ],
+        "functions": [
+          "Hold",
+          "Resolve",
+          "materialize",
+          "publish",
+          "Write"
+        ]
+      }
+    },
+    {
+      "id": "component-oracle",
+      "task_type": "质量保障",
+      "capability_family": "连通分解",
+      "subject": "component",
+      "state": "partitioned",
+      "invariant": "强连通要求互相可达",
+      "observable": "用独立关系检查分组与缩点边",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "scc",
+      "workflow_ids": [
+        "components",
+        "reach"
+      ],
+      "source_anchors": [
+        "walk/components.go",
+        "index/adjacency.go",
+        "engine/queries.go",
+        "walk/reach.go",
+        "walk/options.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/components.go",
+          "index/adjacency.go",
+          "engine/queries.go",
+          "walk/reach.go",
+          "walk/options.go"
+        ],
+        "functions": [
+          "Components",
+          "Visit",
+          "Reach",
+          "visit"
+        ]
+      }
+    },
+    {
+      "id": "typed-index-observer",
+      "task_type": "质量保障",
+      "capability_family": "类型化查询",
+      "subject": "posting",
+      "state": "selected",
+      "invariant": "不存在值不匹配任何具体标量",
+      "observable": "索引核对覆盖不同规则切换与重开",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "post",
+      "workflow_ids": [
+        "lookup"
+      ],
+      "source_anchors": [
+        "index/postings.go",
+        "catalog/rules.go",
+        "engine/queries.go",
+        "graph/scalar.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "index/postings.go",
+          "catalog/rules.go",
+          "engine/queries.go",
+          "graph/scalar.go"
+        ],
+        "functions": [
+          "Equal",
+          "LookupRule",
+          "Lookup",
+          "UnmarshalJSON"
+        ]
+      }
+    },
+    {
+      "id": "name-isolation-proof",
+      "task_type": "质量保障",
+      "capability_family": "镜像恢复",
+      "subject": "namespace",
+      "state": "verified",
+      "invariant": "同名图不覆盖，复制磁盘文件检查负载身份",
+      "observable": "有区分力的图名生命周期验证",
+      "primary_mechanism": "recovery_rollback",
+      "extension_seam_id": "restore",
+      "workflow_ids": [
+        "backup",
+        "restart"
+      ],
+      "source_anchors": [
+        "engine/publish.go",
+        "engine/database.go",
+        "image/codec.go",
+        "disk/heads.go",
+        "index/postings.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/publish.go",
+          "engine/database.go",
+          "image/codec.go",
+          "disk/heads.go",
+          "index/postings.go"
+        ],
+        "functions": [
+          "Restore",
+          "checkedImage",
+          "Decode",
+          "Write",
+          "RestoreHeads",
+          "acceptHead",
+          "BuildPostings"
+        ]
+      }
+    },
+    {
+      "id": "shapes-vs-domain",
+      "task_type": "质量保障",
+      "capability_family": "导出与冻结",
+      "subject": "image",
+      "state": "encoded",
+      "invariant": "摘要正确数据也可能违反图规则",
+      "observable": "合成图像证明格式和规则错误都被拒绝",
+      "primary_mechanism": "export_freeze",
+      "extension_seam_id": "image",
+      "workflow_ids": [
+        "backup",
+        "catalog"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "image/codec.go",
+        "graph/model.go",
+        "catalog/rules.go",
+        "catalog/validate.go",
+        "change/edit.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "image/codec.go",
+          "graph/model.go",
+          "catalog/rules.go",
+          "catalog/validate.go",
+          "change/edit.go"
+        ],
+        "functions": [
+          "Export",
+          "Encode",
+          "Graph",
+          "Rules",
+          "Validate",
+          "Prepare"
+        ]
+      }
+    },
+    {
+      "id": "rank-determinism",
+      "task_type": "质量保障",
+      "capability_family": "代价路径",
+      "subject": "arc",
+      "state": "route",
+      "invariant": "序列比较不由插入或文件顺序决定",
+      "observable": "重排输入与重启后的见证一致",
+      "primary_mechanism": "ranking_reorder",
+      "extension_seam_id": "path",
+      "workflow_ids": [
+        "path",
+        "backup"
+      ],
+      "source_anchors": [
+        "walk/path.go",
+        "walk/options.go",
+        "engine/queries.go",
+        "engine/views.go",
+        "image/codec.go",
+        "graph/model.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/path.go",
+          "walk/options.go",
+          "engine/queries.go",
+          "engine/views.go",
+          "image/codec.go",
+          "graph/model.go"
+        ],
+        "functions": [
+          "Path",
+          "visit",
+          "Export",
+          "Encode",
+          "Graph"
+        ]
+      }
+    },
+    {
+      "id": "budget-edge-oracle",
+      "task_type": "质量保障",
+      "capability_family": "双向邻接",
+      "subject": "arc",
+      "state": "selected",
+      "invariant": "候选计数先于类型过滤",
+      "observable": "对刚好耗完及多一次单独验证",
+      "primary_mechanism": "ranking_reorder",
+      "extension_seam_id": "adj",
+      "workflow_ids": [
+        "adjacency",
+        "reach"
+      ],
+      "source_anchors": [
+        "index/adjacency.go",
+        "walk/reach.go",
+        "walk/options.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "index/adjacency.go",
+          "walk/reach.go",
+          "walk/options.go"
+        ],
+        "functions": [
+          "Visit",
+          "Adjacent",
+          "topologyFor",
+          "Reach",
+          "visit"
+        ]
+      }
+    },
+    {
+      "id": "differential-compare",
+      "task_type": "质量保障",
+      "capability_family": "版本差异",
+      "subject": "revision",
+      "state": "paired",
+      "invariant": "同键更新不可当作删除并新增",
+      "observable": "独立变化记录能解释每条差异",
+      "primary_mechanism": "versioning_audit",
+      "extension_seam_id": "diff",
+      "workflow_ids": [
+        "compare",
+        "vertex"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "change/diff.go",
+        "graph/model.go",
+        "engine/queries.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "change/diff.go",
+          "graph/model.go",
+          "engine/queries.go"
+        ],
+        "functions": [
+          "pair",
+          "Compare",
+          "Graph",
+          "Vertex",
+          "read"
+        ]
+      }
+    },
+    {
+      "id": "ownership-exclusion",
+      "task_type": "质量保障",
+      "capability_family": "并发与锁",
+      "subject": "directory",
+      "state": "owned",
+      "invariant": "优雅停机不能与仍进行的发布竞跑",
+      "observable": "进程级验证新所有者不越过老写者",
+      "primary_mechanism": "concurrency",
+      "extension_seam_id": "lock",
+      "workflow_ids": [
+        "restart",
+        "commit"
+      ],
+      "source_anchors": [
+        "disk/directory.go",
+        "cmd/rillweaved/main.go",
+        "engine/database.go",
+        "engine/publish.go",
+        "disk/heads.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "disk/directory.go",
+          "cmd/rillweaved/main.go",
+          "engine/database.go",
+          "engine/publish.go",
+          "disk/heads.go"
+        ],
+        "functions": [
+          "Open",
+          "run",
+          "publish",
+          "Write",
+          "materialize"
+        ]
+      }
+    },
+    {
+      "id": "null-scalar-rejection",
+      "task_type": "质量保障",
+      "capability_family": "标量与类型",
+      "subject": "scalar",
+      "state": "decoded",
+      "invariant": "无效或未声明字段不能进入候选",
+      "observable": "接口和磁盘载入对同一值一起判定",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "scalar",
+      "workflow_ids": [
+        "lookup",
+        "catalog"
+      ],
+      "source_anchors": [
+        "graph/scalar.go",
+        "catalog/rules.go",
+        "index/postings.go",
+        "catalog/validate.go",
+        "change/edit.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "graph/scalar.go",
+          "catalog/rules.go",
+          "index/postings.go",
+          "catalog/validate.go",
+          "change/edit.go"
+        ],
+        "functions": [
+          "UnmarshalJSON",
+          "LookupRule",
+          "Equal",
+          "Rules",
+          "Validate",
+          "Prepare"
+        ]
+      }
+    },
+    {
+      "id": "single-loop-incidence",
+      "task_type": "质量保障",
+      "capability_family": "双向邻接",
+      "subject": "arc",
+      "state": "selected",
+      "invariant": "同弧在两索引有位置但逻辑只算一次",
+      "observable": "验证拓扑结果和读计费相符",
+      "primary_mechanism": "ranking_reorder",
+      "extension_seam_id": "adj",
+      "workflow_ids": [
+        "adjacency",
+        "components"
+      ],
+      "source_anchors": [
+        "index/adjacency.go",
+        "walk/reach.go",
+        "walk/options.go",
+        "walk/components.go",
+        "engine/queries.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "index/adjacency.go",
+          "walk/reach.go",
+          "walk/options.go",
+          "walk/components.go",
+          "engine/queries.go"
+        ],
+        "functions": [
+          "Visit",
+          "Adjacent",
+          "topologyFor",
+          "Components"
+        ]
+      }
+    },
+    {
+      "id": "image-equivalence",
+      "task_type": "质量保障",
+      "capability_family": "导出与冻结",
+      "subject": "image",
+      "state": "encoded",
+      "invariant": "导入不继承源修订但继承逻辑记录",
+      "observable": "查验相同属性和两种身份的读结果",
+      "primary_mechanism": "export_freeze",
+      "extension_seam_id": "image",
+      "workflow_ids": [
+        "backup",
+        "lookup"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "image/codec.go",
+        "graph/model.go",
+        "index/postings.go",
+        "catalog/rules.go",
+        "engine/queries.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "image/codec.go",
+          "graph/model.go",
+          "index/postings.go",
+          "catalog/rules.go",
+          "engine/queries.go"
+        ],
+        "functions": [
+          "Export",
+          "Encode",
+          "Graph",
+          "Equal",
+          "LookupRule",
+          "Lookup"
+        ]
+      }
+    },
+    {
+      "id": "vertex-retype-proof",
+      "task_type": "质量保障",
+      "capability_family": "模式与约束",
+      "subject": "schema",
+      "state": "candidate",
+      "invariant": "更改点类型必须同步修正受影响弧",
+      "observable": "小图状态生成验证丢弃与失效传播",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "rules",
+      "workflow_ids": [
+        "catalog",
+        "adjacency"
+      ],
+      "source_anchors": [
+        "catalog/rules.go",
+        "catalog/validate.go",
+        "change/edit.go",
+        "index/adjacency.go",
+        "walk/reach.go",
+        "walk/options.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "catalog/rules.go",
+          "catalog/validate.go",
+          "change/edit.go",
+          "index/adjacency.go",
+          "walk/reach.go",
+          "walk/options.go"
+        ],
+        "functions": [
+          "Rules",
+          "Validate",
+          "Prepare",
+          "Visit",
+          "Adjacent",
+          "topologyFor"
+        ]
+      }
+    },
+    {
+      "id": "schema-upgrade-guide",
+      "task_type": "项目维护",
+      "capability_family": "模式与约束",
+      "subject": "schema",
+      "state": "candidate",
+      "invariant": "必填转换允许同批补齐，但旧 pin 解释旧目录",
+      "observable": "维护者依据观测选单次或分段变更",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "rules",
+      "workflow_ids": [
+        "catalog",
+        "commit"
+      ],
+      "source_anchors": [
+        "catalog/rules.go",
+        "catalog/validate.go",
+        "change/edit.go",
+        "engine/publish.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "catalog/rules.go",
+          "catalog/validate.go",
+          "change/edit.go",
+          "engine/publish.go"
+        ],
+        "functions": [
+          "Rules",
+          "Validate",
+          "Prepare",
+          "Commit"
+        ]
+      }
+    },
+    {
+      "id": "safe-copy-manual",
+      "task_type": "项目维护",
+      "capability_family": "导出与冻结",
+      "subject": "image",
+      "state": "encoded",
+      "invariant": "HTTP 恢复和复制持久文件身份不同",
+      "observable": "维护者根据目标修订、旧凭据和容量选择材料",
+      "primary_mechanism": "export_freeze",
+      "extension_seam_id": "image",
+      "workflow_ids": [
+        "backup",
+        "restart"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "image/codec.go",
+        "graph/model.go",
+        "disk/heads.go",
+        "engine/database.go",
+        "index/postings.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "image/codec.go",
+          "graph/model.go",
+          "disk/heads.go",
+          "engine/database.go",
+          "index/postings.go"
+        ],
+        "functions": [
+          "Export",
+          "Encode",
+          "Graph",
+          "RestoreHeads",
+          "acceptHead",
+          "BuildPostings"
+        ]
+      }
+    },
+    {
+      "id": "query-contract-examples",
+      "task_type": "项目维护",
+      "capability_family": "代价路径",
+      "subject": "arc",
+      "state": "route",
+      "invariant": "路径代价优先与最少跳数不同",
+      "observable": "消费者按问题类型选择请求和解释错误",
+      "primary_mechanism": "ranking_reorder",
+      "extension_seam_id": "path",
+      "workflow_ids": [
+        "path",
+        "reach"
+      ],
+      "source_anchors": [
+        "walk/path.go",
+        "walk/options.go",
+        "engine/queries.go",
+        "walk/reach.go",
+        "index/adjacency.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/path.go",
+          "walk/options.go",
+          "engine/queries.go",
+          "walk/reach.go",
+          "index/adjacency.go"
+        ],
+        "functions": [
+          "Path",
+          "visit",
+          "Reach",
+          "Visit"
+        ]
+      }
+    },
+    {
+      "id": "pin-consumer-guide",
+      "task_type": "项目维护",
+      "capability_family": "视图生命周期",
+      "subject": "handle",
+      "state": "held",
+      "invariant": "未固定的多次读不能保证一个图版本",
+      "observable": "提供批处理消费者可执行读表契约",
+      "primary_mechanism": "resource_lifecycle",
+      "extension_seam_id": "hold",
+      "workflow_ids": [
+        "pin",
+        "vertex"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "view/handles.go",
+        "engine/database.go",
+        "engine/queries.go",
+        "graph/model.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "view/handles.go",
+          "engine/database.go",
+          "engine/queries.go",
+          "graph/model.go"
+        ],
+        "functions": [
+          "Hold",
+          "Resolve",
+          "materialize",
+          "Vertex",
+          "read",
+          "Graph"
+        ]
+      }
+    },
+    {
+      "id": "budget-consumer-guide",
+      "task_type": "项目维护",
+      "capability_family": "双向邻接",
+      "subject": "arc",
+      "state": "selected",
+      "invariant": "输出截断与预算失败不同",
+      "observable": "调用方能分辨完整计数和不可用前缀",
+      "primary_mechanism": "ranking_reorder",
+      "extension_seam_id": "adj",
+      "workflow_ids": [
+        "adjacency",
+        "lookup"
+      ],
+      "source_anchors": [
+        "index/adjacency.go",
+        "walk/reach.go",
+        "walk/options.go",
+        "index/postings.go",
+        "catalog/rules.go",
+        "engine/queries.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "index/adjacency.go",
+          "walk/reach.go",
+          "walk/options.go",
+          "index/postings.go",
+          "catalog/rules.go",
+          "engine/queries.go"
+        ],
+        "functions": [
+          "Visit",
+          "Adjacent",
+          "topologyFor",
+          "Equal",
+          "LookupRule",
+          "Lookup"
+        ]
+      }
+    },
+    {
+      "id": "endpoint-adoption",
+      "task_type": "项目维护",
+      "capability_family": "模式与约束",
+      "subject": "schema",
+      "state": "candidate",
+      "invariant": "新增点类不自动成为旧关系的合法端点",
+      "observable": "目录评审材料串联连接与发布影响",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "rules",
+      "workflow_ids": [
+        "catalog",
+        "adjacency"
+      ],
+      "source_anchors": [
+        "catalog/rules.go",
+        "catalog/validate.go",
+        "change/edit.go",
+        "index/adjacency.go",
+        "walk/reach.go",
+        "walk/options.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "catalog/rules.go",
+          "catalog/validate.go",
+          "change/edit.go",
+          "index/adjacency.go",
+          "walk/reach.go",
+          "walk/options.go"
+        ],
+        "functions": [
+          "Rules",
+          "Validate",
+          "Prepare",
+          "Visit",
+          "Adjacent",
+          "topologyFor"
+        ]
+      }
+    },
+    {
+      "id": "fault-contract",
+      "task_type": "项目维护",
+      "capability_family": "并发与锁",
+      "subject": "revision",
+      "state": "validated",
+      "invariant": "确认不确定性不能把上一状态当作真相",
+      "observable": "维护文档明确对照重开后的 durable 版本",
+      "primary_mechanism": "concurrency",
+      "extension_seam_id": "publish",
+      "workflow_ids": [
+        "commit",
+        "restart"
+      ],
+      "source_anchors": [
+        "engine/publish.go",
+        "disk/heads.go",
+        "engine/database.go",
+        "index/postings.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/publish.go",
+          "disk/heads.go",
+          "engine/database.go",
+          "index/postings.go"
+        ],
+        "functions": [
+          "publish",
+          "Write",
+          "materialize",
+          "RestoreHeads",
+          "acceptHead",
+          "BuildPostings"
+        ]
+      }
+    },
+    {
+      "id": "arcs-update-guide",
+      "task_type": "项目维护",
+      "capability_family": "版本差异",
+      "subject": "revision",
+      "state": "paired",
+      "invariant": "同弧 ID 可换端点和代价",
+      "observable": "读取方知道何时作废派生路径",
+      "primary_mechanism": "versioning_audit",
+      "extension_seam_id": "diff",
+      "workflow_ids": [
+        "compare",
+        "path"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "change/diff.go",
+        "graph/model.go",
+        "walk/path.go",
+        "walk/options.go",
+        "engine/queries.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "change/diff.go",
+          "graph/model.go",
+          "walk/path.go",
+          "walk/options.go",
+          "engine/queries.go"
+        ],
+        "functions": [
+          "pair",
+          "Compare",
+          "Graph",
+          "Path",
+          "visit"
+        ]
+      }
+    },
+    {
+      "id": "naming-guide",
+      "task_type": "项目维护",
+      "capability_family": "镜像恢复",
+      "subject": "namespace",
+      "state": "verified",
+      "invariant": "每数据目录独占，命名空间独立",
+      "observable": "维护指引区分多个图与多个进程实例",
+      "primary_mechanism": "recovery_rollback",
+      "extension_seam_id": "restore",
+      "workflow_ids": [
+        "backup",
+        "restart"
+      ],
+      "source_anchors": [
+        "engine/publish.go",
+        "engine/database.go",
+        "image/codec.go",
+        "disk/heads.go",
+        "disk/directory.go",
+        "cmd/rillweaved/main.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/publish.go",
+          "engine/database.go",
+          "image/codec.go",
+          "disk/heads.go",
+          "disk/directory.go",
+          "cmd/rillweaved/main.go"
+        ],
+        "functions": [
+          "Restore",
+          "checkedImage",
+          "Decode",
+          "Write",
+          "Open",
+          "run"
+        ]
+      }
+    },
+    {
+      "id": "scalar-compat-doc",
+      "task_type": "项目维护",
+      "capability_family": "标量与类型",
+      "subject": "scalar",
+      "state": "decoded",
+      "invariant": "大整数无损且布尔不能当整数",
+      "observable": "给两类客户端提供值转换证据",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "scalar",
+      "workflow_ids": [
+        "lookup"
+      ],
+      "source_anchors": [
+        "graph/scalar.go",
+        "catalog/rules.go",
+        "index/postings.go",
+        "engine/queries.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "graph/scalar.go",
+          "catalog/rules.go",
+          "index/postings.go",
+          "engine/queries.go"
+        ],
+        "functions": [
+          "UnmarshalJSON",
+          "LookupRule",
+          "Equal",
+          "Lookup"
+        ]
+      }
+    },
+    {
+      "id": "pin-comparison-guide",
+      "task_type": "项目维护",
+      "capability_family": "版本差异",
+      "subject": "revision",
+      "state": "paired",
+      "invariant": "比较两个旧视图时不能改拿 head",
+      "observable": "支持消费者在快速写入时解释差异",
+      "primary_mechanism": "versioning_audit",
+      "extension_seam_id": "diff",
+      "workflow_ids": [
+        "compare",
+        "pin"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "change/diff.go",
+        "graph/model.go",
+        "view/handles.go",
+        "engine/database.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "change/diff.go",
+          "graph/model.go",
+          "view/handles.go",
+          "engine/database.go"
+        ],
+        "functions": [
+          "pair",
+          "Compare",
+          "Graph",
+          "Hold",
+          "Resolve",
+          "materialize"
+        ]
+      }
+    },
+    {
+      "id": "inventory-guide",
+      "task_type": "项目维护",
+      "capability_family": "启动恢复",
+      "subject": "namespace",
+      "state": "recovered",
+      "invariant": "启动按文件名与负载名匹配",
+      "observable": "手工数据归档指南区分可重放与不可重放材料",
+      "primary_mechanism": "recovery_rollback",
+      "extension_seam_id": "reopen",
+      "workflow_ids": [
+        "restart",
+        "backup"
+      ],
+      "source_anchors": [
+        "disk/heads.go",
+        "engine/database.go",
+        "index/postings.go",
+        "engine/views.go",
+        "image/codec.go",
+        "graph/model.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "disk/heads.go",
+          "engine/database.go",
+          "index/postings.go",
+          "engine/views.go",
+          "image/codec.go",
+          "graph/model.go"
+        ],
+        "functions": [
+          "RestoreHeads",
+          "acceptHead",
+          "BuildPostings",
+          "Export",
+          "Encode",
+          "Graph"
+        ]
+      }
+    },
+    {
+      "id": "condensation-doc",
+      "task_type": "项目维护",
+      "capability_family": "连通分解",
+      "subject": "component",
+      "state": "partitioned",
+      "invariant": "缩点链接不等价于直接点连接",
+      "observable": "消费者由分组结果判断可执行顺序",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "scc",
+      "workflow_ids": [
+        "components",
+        "reach"
+      ],
+      "source_anchors": [
+        "walk/components.go",
+        "index/adjacency.go",
+        "engine/queries.go",
+        "walk/reach.go",
+        "walk/options.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/components.go",
+          "index/adjacency.go",
+          "engine/queries.go",
+          "walk/reach.go",
+          "walk/options.go"
+        ],
+        "functions": [
+          "Components",
+          "Visit",
+          "Reach",
+          "visit"
+        ]
+      }
+    },
+    {
+      "id": "capacity-contract",
+      "task_type": "项目维护",
+      "capability_family": "并发与锁",
+      "subject": "revision",
+      "state": "validated",
+      "invariant": "实体数限制和镜像字节限制可分别触发",
+      "observable": "程序维护者能预测拆分条件",
+      "primary_mechanism": "concurrency",
+      "extension_seam_id": "publish",
+      "workflow_ids": [
+        "commit",
+        "backup"
+      ],
+      "source_anchors": [
+        "engine/publish.go",
+        "disk/heads.go",
+        "engine/database.go",
+        "engine/views.go",
+        "image/codec.go",
+        "graph/model.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/publish.go",
+          "disk/heads.go",
+          "engine/database.go",
+          "engine/views.go",
+          "image/codec.go",
+          "graph/model.go"
+        ],
+        "functions": [
+          "publish",
+          "Write",
+          "materialize",
+          "Export",
+          "Encode",
+          "Graph"
+        ]
+      }
+    },
+    {
+      "id": "examples-provenance",
+      "task_type": "项目维护",
+      "capability_family": "镜像恢复",
+      "subject": "namespace",
+      "state": "verified",
+      "invariant": "源 revision 和新图 revision 不可混用",
+      "observable": "维护示例保有迁移后可重复查询依据",
+      "primary_mechanism": "recovery_rollback",
+      "extension_seam_id": "restore",
+      "workflow_ids": [
+        "backup",
+        "vertex"
+      ],
+      "source_anchors": [
+        "engine/publish.go",
+        "engine/database.go",
+        "image/codec.go",
+        "disk/heads.go",
+        "engine/queries.go",
+        "engine/views.go",
+        "graph/model.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/publish.go",
+          "engine/database.go",
+          "image/codec.go",
+          "disk/heads.go",
+          "engine/queries.go",
+          "engine/views.go",
+          "graph/model.go"
+        ],
+        "functions": [
+          "Restore",
+          "checkedImage",
+          "Decode",
+          "Write",
+          "Vertex",
+          "read",
+          "Graph"
+        ]
+      }
+    },
+    {
+      "id": "adj-list-choice",
+      "task_type": "技术讨论",
+      "capability_family": "双向邻接",
+      "subject": "arc",
+      "state": "selected",
+      "invariant": "有向平行弧和反向访问同时需要保留",
+      "observable": "比较稀疏与连续索引布局的适用阈值",
+      "primary_mechanism": "ranking_reorder",
+      "extension_seam_id": "adj",
+      "workflow_ids": [
+        "adjacency",
+        "components"
+      ],
+      "source_anchors": [
+        "index/adjacency.go",
+        "walk/reach.go",
+        "walk/options.go",
+        "walk/components.go",
+        "engine/queries.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "index/adjacency.go",
+          "walk/reach.go",
+          "walk/options.go",
+          "walk/components.go",
+          "engine/queries.go"
+        ],
+        "functions": [
+          "Visit",
+          "Adjacent",
+          "topologyFor",
+          "Components"
+        ]
+      }
+    },
+    {
+      "id": "pin-memory-choice",
+      "task_type": "技术讨论",
+      "capability_family": "视图生命周期",
+      "subject": "handle",
+      "state": "held",
+      "invariant": "多个句柄可能引用同一旧根",
+      "observable": "比较共享与单独快照在租约及读延迟上的后果",
+      "primary_mechanism": "resource_lifecycle",
+      "extension_seam_id": "hold",
+      "workflow_ids": [
+        "pin",
+        "commit"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "view/handles.go",
+        "engine/database.go",
+        "engine/publish.go",
+        "disk/heads.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "view/handles.go",
+          "engine/database.go",
+          "engine/publish.go",
+          "disk/heads.go"
+        ],
+        "functions": [
+          "Hold",
+          "Resolve",
+          "materialize",
+          "publish",
+          "Write"
+        ]
+      }
+    },
+    {
+      "id": "journal-vs-image",
+      "task_type": "技术讨论",
+      "capability_family": "并发与锁",
+      "subject": "revision",
+      "state": "validated",
+      "invariant": "可见性绑定确认持久的版本",
+      "observable": "比较何种写负载适合增量日志或整图镜像",
+      "primary_mechanism": "concurrency",
+      "extension_seam_id": "publish",
+      "workflow_ids": [
+        "commit",
+        "restart"
+      ],
+      "source_anchors": [
+        "engine/publish.go",
+        "disk/heads.go",
+        "engine/database.go",
+        "index/postings.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/publish.go",
+          "disk/heads.go",
+          "engine/database.go",
+          "index/postings.go"
+        ],
+        "functions": [
+          "publish",
+          "Write",
+          "materialize",
+          "RestoreHeads",
+          "acceptHead",
+          "BuildPostings"
+        ]
+      }
+    },
+    {
+      "id": "schema-evolution",
+      "task_type": "技术讨论",
+      "capability_family": "模式与约束",
+      "subject": "schema",
+      "state": "candidate",
+      "invariant": "pin 对 schema 的观察不可随头改变",
+      "observable": "比较升级版本选择和兼容协商模型",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "rules",
+      "workflow_ids": [
+        "catalog",
+        "lookup"
+      ],
+      "source_anchors": [
+        "catalog/rules.go",
+        "catalog/validate.go",
+        "change/edit.go",
+        "index/postings.go",
+        "engine/queries.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "catalog/rules.go",
+          "catalog/validate.go",
+          "change/edit.go",
+          "index/postings.go",
+          "engine/queries.go"
+        ],
+        "functions": [
+          "Rules",
+          "Validate",
+          "Prepare",
+          "Equal",
+          "LookupRule",
+          "Lookup"
+        ]
+      }
+    },
+    {
+      "id": "per-namespace-writers",
+      "task_type": "技术讨论",
+      "capability_family": "并发与锁",
+      "subject": "directory",
+      "state": "owned",
+      "invariant": "全库 fault 与图内写冲突性质不同",
+      "observable": "讨论写锁粒度和不确定性传播界限",
+      "primary_mechanism": "concurrency",
+      "extension_seam_id": "lock",
+      "workflow_ids": [
+        "restart",
+        "commit"
+      ],
+      "source_anchors": [
+        "disk/directory.go",
+        "cmd/rillweaved/main.go",
+        "engine/database.go",
+        "engine/publish.go",
+        "disk/heads.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "disk/directory.go",
+          "cmd/rillweaved/main.go",
+          "engine/database.go",
+          "engine/publish.go",
+          "disk/heads.go"
+        ],
+        "functions": [
+          "Open",
+          "run",
+          "publish",
+          "Write",
+          "materialize"
+        ]
+      }
+    },
+    {
+      "id": "numeric-ordering",
+      "task_type": "技术讨论",
+      "capability_family": "标量与类型",
+      "subject": "scalar",
+      "state": "decoded",
+      "invariant": "图标量 int64 不等于路径总权重约束",
+      "observable": "比较额外数值类型对接口和过界行为的影响",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "scalar",
+      "workflow_ids": [
+        "lookup",
+        "path"
+      ],
+      "source_anchors": [
+        "graph/scalar.go",
+        "catalog/rules.go",
+        "index/postings.go",
+        "walk/path.go",
+        "walk/options.go",
+        "engine/queries.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "graph/scalar.go",
+          "catalog/rules.go",
+          "index/postings.go",
+          "walk/path.go",
+          "walk/options.go",
+          "engine/queries.go"
+        ],
+        "functions": [
+          "UnmarshalJSON",
+          "LookupRule",
+          "Equal",
+          "Path",
+          "visit"
+        ]
+      }
+    },
+    {
+      "id": "bounded-search-cost",
+      "task_type": "技术讨论",
+      "capability_family": "代价路径",
+      "subject": "arc",
+      "state": "route",
+      "invariant": "不同路径算法预算含义可能不同",
+      "observable": "比较同口径的最优见证和延迟保证",
+      "primary_mechanism": "ranking_reorder",
+      "extension_seam_id": "path",
+      "workflow_ids": [
+        "path",
+        "reach"
+      ],
+      "source_anchors": [
+        "walk/path.go",
+        "walk/options.go",
+        "engine/queries.go",
+        "walk/reach.go",
+        "index/adjacency.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/path.go",
+          "walk/options.go",
+          "engine/queries.go",
+          "walk/reach.go",
+          "index/adjacency.go"
+        ],
+        "functions": [
+          "Path",
+          "visit",
+          "Reach",
+          "Visit"
+        ]
+      }
+    },
+    {
+      "id": "query-result-key",
+      "task_type": "技术讨论",
+      "capability_family": "类型化查询",
+      "subject": "posting",
+      "state": "selected",
+      "invariant": "类型化值顺序与 ID 稳定顺序可竞争",
+      "observable": "为分页协议选择版本条件和排序编码",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "post",
+      "workflow_ids": [
+        "lookup",
+        "vertex"
+      ],
+      "source_anchors": [
+        "index/postings.go",
+        "catalog/rules.go",
+        "engine/queries.go",
+        "engine/views.go",
+        "graph/model.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "index/postings.go",
+          "catalog/rules.go",
+          "engine/queries.go",
+          "engine/views.go",
+          "graph/model.go"
+        ],
+        "functions": [
+          "Equal",
+          "LookupRule",
+          "Lookup",
+          "Vertex",
+          "read",
+          "Graph"
+        ]
+      }
+    },
+    {
+      "id": "scc-storage",
+      "task_type": "技术讨论",
+      "capability_family": "连通分解",
+      "subject": "component",
+      "state": "partitioned",
+      "invariant": "种类过滤会改变互达性",
+      "observable": "比较按需与增量维护在多过滤组合的成本",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "scc",
+      "workflow_ids": [
+        "components",
+        "adjacency"
+      ],
+      "source_anchors": [
+        "walk/components.go",
+        "index/adjacency.go",
+        "engine/queries.go",
+        "walk/reach.go",
+        "walk/options.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/components.go",
+          "index/adjacency.go",
+          "engine/queries.go",
+          "walk/reach.go",
+          "walk/options.go"
+        ],
+        "functions": [
+          "Components",
+          "Visit",
+          "Adjacent",
+          "topologyFor"
+        ]
+      }
+    },
+    {
+      "id": "online-migration",
+      "task_type": "技术讨论",
+      "capability_family": "镜像恢复",
+      "subject": "namespace",
+      "state": "verified",
+      "invariant": "修改当前图不改变已持有旧视图",
+      "observable": "给出镜像更换时版本连续性的可行协议边界",
+      "primary_mechanism": "recovery_rollback",
+      "extension_seam_id": "restore",
+      "workflow_ids": [
+        "backup",
+        "pin"
+      ],
+      "source_anchors": [
+        "engine/publish.go",
+        "engine/database.go",
+        "image/codec.go",
+        "disk/heads.go",
+        "engine/views.go",
+        "view/handles.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/publish.go",
+          "engine/database.go",
+          "image/codec.go",
+          "disk/heads.go",
+          "engine/views.go",
+          "view/handles.go"
+        ],
+        "functions": [
+          "Restore",
+          "checkedImage",
+          "Decode",
+          "Write",
+          "Hold",
+          "Resolve",
+          "materialize"
+        ]
+      }
+    },
+    {
+      "id": "portable-identity",
+      "task_type": "技术讨论",
+      "capability_family": "导出与冻结",
+      "subject": "image",
+      "state": "encoded",
+      "invariant": "存储镜像的物理摘要不是逻辑等价类",
+      "observable": "比较复用图名、内容指纹和外部 lineage 的用途",
+      "primary_mechanism": "export_freeze",
+      "extension_seam_id": "image",
+      "workflow_ids": [
+        "backup",
+        "compare"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "image/codec.go",
+        "graph/model.go",
+        "change/diff.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "image/codec.go",
+          "graph/model.go",
+          "change/diff.go"
+        ],
+        "functions": [
+          "Export",
+          "Encode",
+          "Graph",
+          "pair",
+          "Compare"
+        ]
+      }
+    },
+    {
+      "id": "partial-availability",
+      "task_type": "技术讨论",
+      "capability_family": "启动恢复",
+      "subject": "namespace",
+      "state": "recovered",
+      "invariant": "目录当前有任何坏头都停止服务",
+      "observable": "讨论按图隔离故障对就绪与写入操作的代价",
+      "primary_mechanism": "recovery_rollback",
+      "extension_seam_id": "reopen",
+      "workflow_ids": [
+        "restart"
+      ],
+      "source_anchors": [
+        "disk/heads.go",
+        "engine/database.go",
+        "index/postings.go",
+        "disk/directory.go",
+        "cmd/rillweaved/main.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "disk/heads.go",
+          "engine/database.go",
+          "index/postings.go",
+          "disk/directory.go",
+          "cmd/rillweaved/main.go"
+        ],
+        "functions": [
+          "RestoreHeads",
+          "acceptHead",
+          "BuildPostings",
+          "Open",
+          "run"
+        ]
+      }
+    },
+    {
+      "id": "lookup-index-selection",
+      "task_type": "技术讨论",
+      "capability_family": "类型化查询",
+      "subject": "posting",
+      "state": "selected",
+      "invariant": "索引覆盖随声明和实际属性变化",
+      "observable": "比较强制全覆盖与按属性选择的语义",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "post",
+      "workflow_ids": [
+        "lookup",
+        "catalog"
+      ],
+      "source_anchors": [
+        "index/postings.go",
+        "catalog/rules.go",
+        "engine/queries.go",
+        "catalog/validate.go",
+        "change/edit.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "index/postings.go",
+          "catalog/rules.go",
+          "engine/queries.go",
+          "catalog/validate.go",
+          "change/edit.go"
+        ],
+        "functions": [
+          "Equal",
+          "LookupRule",
+          "Lookup",
+          "Rules",
+          "Validate",
+          "Prepare"
+        ]
+      }
+    },
+    {
+      "id": "inflight-request-lifetimes",
+      "task_type": "技术讨论",
+      "capability_family": "视图生命周期",
+      "subject": "handle",
+      "state": "held",
+      "invariant": "释放 pin 不会中止已解析请求",
+      "observable": "论证查询取消和固定视图回收的资源边界",
+      "primary_mechanism": "resource_lifecycle",
+      "extension_seam_id": "hold",
+      "workflow_ids": [
+        "pin",
+        "reach"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "view/handles.go",
+        "engine/database.go",
+        "walk/reach.go",
+        "walk/options.go",
+        "index/adjacency.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "view/handles.go",
+          "engine/database.go",
+          "walk/reach.go",
+          "walk/options.go",
+          "index/adjacency.go"
+        ],
+        "functions": [
+          "Hold",
+          "Resolve",
+          "materialize",
+          "Reach",
+          "visit",
+          "Visit"
+        ]
+      }
+    },
+    {
+      "id": "conflict-witness",
+      "task_type": "技术讨论",
+      "capability_family": "原子图编辑",
+      "subject": "vertex",
+      "state": "candidate",
+      "invariant": "实体级更新不覆盖最终唯一性竞争",
+      "observable": "比较冲突证据粒度和客户端可采取动作",
+      "primary_mechanism": "batch_transaction",
+      "extension_seam_id": "unique",
+      "workflow_ids": [
+        "commit",
+        "compare"
+      ],
+      "source_anchors": [
+        "catalog/validate.go",
+        "change/edit.go",
+        "engine/publish.go",
+        "engine/views.go",
+        "change/diff.go",
+        "graph/model.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "catalog/validate.go",
+          "change/edit.go",
+          "engine/publish.go",
+          "engine/views.go",
+          "change/diff.go",
+          "graph/model.go"
+        ],
+        "functions": [
+          "Validate",
+          "Prepare",
+          "Commit",
+          "pair",
+          "Compare",
+          "Graph"
+        ]
+      }
+    },
+    {
+      "id": "bounded-cheap-prefix",
+      "task_type": "问题排查与诊断",
+      "capability_family": "代价路径",
+      "subject": "arc",
+      "state": "route",
+      "invariant": "有限跳数改变可行前缀而不是改变弧费用",
+      "observable": "令报告区分剪枝预期、方向或输入和不成立的路径",
+      "primary_mechanism": "ranking_reorder",
+      "extension_seam_id": "path",
+      "workflow_ids": [
+        "path",
+        "reach"
+      ],
+      "source_anchors": [
+        "walk/path.go",
+        "walk/options.go",
+        "engine/queries.go",
+        "walk/reach.go",
+        "index/adjacency.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/path.go",
+          "walk/options.go",
+          "engine/queries.go",
+          "walk/reach.go",
+          "index/adjacency.go"
+        ],
+        "functions": [
+          "Path",
+          "visit",
+          "Reach",
+          "Visit"
+        ]
+      }
+    },
+    {
+      "id": "restored-head-drift",
+      "task_type": "问题排查与诊断",
+      "capability_family": "镜像恢复",
+      "subject": "namespace",
+      "state": "verified",
+      "invariant": "镜像来源可能早于当前源头，并保留不同身份",
+      "observable": "定位迁移后读差异来自哪个视图阶段",
+      "primary_mechanism": "recovery_rollback",
+      "extension_seam_id": "restore",
+      "workflow_ids": [
+        "backup",
+        "pin"
+      ],
+      "source_anchors": [
+        "engine/publish.go",
+        "engine/database.go",
+        "image/codec.go",
+        "disk/heads.go",
+        "engine/views.go",
+        "view/handles.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/publish.go",
+          "engine/database.go",
+          "image/codec.go",
+          "disk/heads.go",
+          "engine/views.go",
+          "view/handles.go"
+        ],
+        "functions": [
+          "Restore",
+          "checkedImage",
+          "Decode",
+          "Write",
+          "Hold",
+          "Resolve",
+          "materialize"
+        ]
+      }
+    },
+    {
+      "id": "candidate-rejection",
+      "task_type": "问题排查与诊断",
+      "capability_family": "原子图编辑",
+      "subject": "vertex",
+      "state": "candidate",
+      "invariant": "同一编辑在不同初始状态及批量组合可有不同判定",
+      "observable": "重现拒绝范围和不变的头",
+      "primary_mechanism": "batch_transaction",
+      "extension_seam_id": "unique",
+      "workflow_ids": [
+        "commit",
+        "catalog"
+      ],
+      "source_anchors": [
+        "catalog/validate.go",
+        "change/edit.go",
+        "engine/publish.go",
+        "catalog/rules.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "catalog/validate.go",
+          "change/edit.go",
+          "engine/publish.go",
+          "catalog/rules.go"
+        ],
+        "functions": [
+          "Validate",
+          "Prepare",
+          "Commit",
+          "Rules"
+        ]
+      }
+    },
+    {
+      "id": "both-direction-count",
+      "task_type": "问题排查与诊断",
+      "capability_family": "双向邻接",
+      "subject": "arc",
+      "state": "selected",
+      "invariant": "自环去重复，过滤候选仍计费",
+      "observable": "解释邻接显示与扫描量不同",
+      "primary_mechanism": "ranking_reorder",
+      "extension_seam_id": "adj",
+      "workflow_ids": [
+        "adjacency",
+        "reach"
+      ],
+      "source_anchors": [
+        "index/adjacency.go",
+        "walk/reach.go",
+        "walk/options.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "index/adjacency.go",
+          "walk/reach.go",
+          "walk/options.go"
+        ],
+        "functions": [
+          "Visit",
+          "Adjacent",
+          "topologyFor",
+          "Reach",
+          "visit"
+        ]
+      }
+    },
+    {
+      "id": "omitted-values",
+      "task_type": "问题排查与诊断",
+      "capability_family": "类型化查询",
+      "subject": "posting",
+      "state": "selected",
+      "invariant": "缺失、零值和错误类型响应不同",
+      "observable": "确定读取结果的空集不是吞数据",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "post",
+      "workflow_ids": [
+        "lookup"
+      ],
+      "source_anchors": [
+        "index/postings.go",
+        "catalog/rules.go",
+        "engine/queries.go",
+        "graph/scalar.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "index/postings.go",
+          "catalog/rules.go",
+          "engine/queries.go",
+          "graph/scalar.go"
+        ],
+        "functions": [
+          "Equal",
+          "LookupRule",
+          "Lookup",
+          "UnmarshalJSON"
+        ]
+      }
+    },
+    {
+      "id": "head-mismatch",
+      "task_type": "问题排查与诊断",
+      "capability_family": "启动恢复",
+      "subject": "namespace",
+      "state": "recovered",
+      "invariant": "磁盘名和负载名需一致",
+      "observable": "定位复制数据后真实阻断的文件",
+      "primary_mechanism": "recovery_rollback",
+      "extension_seam_id": "reopen",
+      "workflow_ids": [
+        "restart",
+        "backup"
+      ],
+      "source_anchors": [
+        "disk/heads.go",
+        "engine/database.go",
+        "index/postings.go",
+        "engine/views.go",
+        "image/codec.go",
+        "graph/model.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "disk/heads.go",
+          "engine/database.go",
+          "index/postings.go",
+          "engine/views.go",
+          "image/codec.go",
+          "graph/model.go"
+        ],
+        "functions": [
+          "RestoreHeads",
+          "acceptHead",
+          "BuildPostings",
+          "Export",
+          "Encode",
+          "Graph"
+        ]
+      }
+    },
+    {
+      "id": "scope-failure",
+      "task_type": "问题排查与诊断",
+      "capability_family": "视图生命周期",
+      "subject": "handle",
+      "state": "held",
+      "invariant": "句柄可能正确但属于另一图",
+      "observable": "给出稳定复现与波及查询的证据",
+      "primary_mechanism": "resource_lifecycle",
+      "extension_seam_id": "hold",
+      "workflow_ids": [
+        "pin",
+        "vertex"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "view/handles.go",
+        "engine/database.go",
+        "engine/queries.go",
+        "graph/model.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "view/handles.go",
+          "engine/database.go",
+          "engine/queries.go",
+          "graph/model.go"
+        ],
+        "functions": [
+          "Hold",
+          "Resolve",
+          "materialize",
+          "Vertex",
+          "read",
+          "Graph"
+        ]
+      }
+    },
+    {
+      "id": "unvalidated-image",
+      "task_type": "问题排查与诊断",
+      "capability_family": "导出与冻结",
+      "subject": "image",
+      "state": "encoded",
+      "invariant": "摘要通过并不代表业务规则通过",
+      "observable": "区分格式、摘要及端点不匹配",
+      "primary_mechanism": "export_freeze",
+      "extension_seam_id": "image",
+      "workflow_ids": [
+        "backup",
+        "catalog"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "image/codec.go",
+        "graph/model.go",
+        "catalog/rules.go",
+        "catalog/validate.go",
+        "change/edit.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "image/codec.go",
+          "graph/model.go",
+          "catalog/rules.go",
+          "catalog/validate.go",
+          "change/edit.go"
+        ],
+        "functions": [
+          "Export",
+          "Encode",
+          "Graph",
+          "Rules",
+          "Validate",
+          "Prepare"
+        ]
+      }
+    },
+    {
+      "id": "false-component-merge",
+      "task_type": "问题排查与诊断",
+      "capability_family": "连通分解",
+      "subject": "component",
+      "state": "partitioned",
+      "invariant": "反向走法不用于分组语义",
+      "observable": "区分边选错和弱强连通预期混淆",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "scc",
+      "workflow_ids": [
+        "components",
+        "adjacency"
+      ],
+      "source_anchors": [
+        "walk/components.go",
+        "index/adjacency.go",
+        "engine/queries.go",
+        "walk/reach.go",
+        "walk/options.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "walk/components.go",
+          "index/adjacency.go",
+          "engine/queries.go",
+          "walk/reach.go",
+          "walk/options.go"
+        ],
+        "functions": [
+          "Components",
+          "Visit",
+          "Adjacent",
+          "topologyFor"
+        ]
+      }
+    },
+    {
+      "id": "stale-commit-race",
+      "task_type": "问题排查与诊断",
+      "capability_family": "并发与锁",
+      "subject": "revision",
+      "state": "validated",
+      "invariant": "同基版本并发操作只能有一个接受",
+      "observable": "定位哪个状态留下了客户端看到的值",
+      "primary_mechanism": "concurrency",
+      "extension_seam_id": "publish",
+      "workflow_ids": [
+        "commit"
+      ],
+      "source_anchors": [
+        "engine/publish.go",
+        "disk/heads.go",
+        "engine/database.go",
+        "catalog/validate.go",
+        "change/edit.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/publish.go",
+          "disk/heads.go",
+          "engine/database.go",
+          "catalog/validate.go",
+          "change/edit.go"
+        ],
+        "functions": [
+          "publish",
+          "Write",
+          "materialize",
+          "Validate",
+          "Prepare",
+          "Commit"
+        ]
+      }
+    },
+    {
+      "id": "image-ceiling",
+      "task_type": "问题排查与诊断",
+      "capability_family": "导出与冻结",
+      "subject": "image",
+      "state": "encoded",
+      "invariant": "编辑数量不预测编码负载大小",
+      "observable": "归因提交触发哪一类容量限制",
+      "primary_mechanism": "export_freeze",
+      "extension_seam_id": "image",
+      "workflow_ids": [
+        "backup",
+        "commit"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "image/codec.go",
+        "graph/model.go",
+        "engine/publish.go",
+        "disk/heads.go",
+        "engine/database.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "image/codec.go",
+          "graph/model.go",
+          "engine/publish.go",
+          "disk/heads.go",
+          "engine/database.go"
+        ],
+        "functions": [
+          "Export",
+          "Encode",
+          "Graph",
+          "publish",
+          "Write",
+          "materialize"
+        ]
+      }
+    },
+    {
+      "id": "chart-of-diff",
+      "task_type": "问题排查与诊断",
+      "capability_family": "版本差异",
+      "subject": "revision",
+      "state": "paired",
+      "invariant": "原位更新可能同时改变弧 endpoints",
+      "observable": "证实异动应归入哪类差异",
+      "primary_mechanism": "versioning_audit",
+      "extension_seam_id": "diff",
+      "workflow_ids": [
+        "compare",
+        "vertex"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "change/diff.go",
+        "graph/model.go",
+        "engine/queries.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "change/diff.go",
+          "graph/model.go",
+          "engine/queries.go"
+        ],
+        "functions": [
+          "pair",
+          "Compare",
+          "Graph",
+          "Vertex",
+          "read"
+        ]
+      }
+    },
+    {
+      "id": "exclusive-startup",
+      "task_type": "问题排查与诊断",
+      "capability_family": "并发与锁",
+      "subject": "directory",
+      "state": "owned",
+      "invariant": "目录竞争比端口绑定更早发生",
+      "observable": "观测不同资源争用导致的启动口径",
+      "primary_mechanism": "concurrency",
+      "extension_seam_id": "lock",
+      "workflow_ids": [
+        "restart"
+      ],
+      "source_anchors": [
+        "disk/directory.go",
+        "cmd/rillweaved/main.go",
+        "engine/database.go",
+        "disk/heads.go",
+        "index/postings.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "disk/directory.go",
+          "cmd/rillweaved/main.go",
+          "engine/database.go",
+          "disk/heads.go",
+          "index/postings.go"
+        ],
+        "functions": [
+          "Open",
+          "run",
+          "RestoreHeads",
+          "acceptHead",
+          "BuildPostings"
+        ]
+      }
+    },
+    {
+      "id": "expired-client-reference",
+      "task_type": "问题排查与诊断",
+      "capability_family": "视图生命周期",
+      "subject": "handle",
+      "state": "held",
+      "invariant": "重新启动图保持而进程引用不保持",
+      "observable": "列出仍可使用的所有复核接口",
+      "primary_mechanism": "resource_lifecycle",
+      "extension_seam_id": "hold",
+      "workflow_ids": [
+        "pin",
+        "restart"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "view/handles.go",
+        "engine/database.go",
+        "disk/heads.go",
+        "index/postings.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "view/handles.go",
+          "engine/database.go",
+          "disk/heads.go",
+          "index/postings.go"
+        ],
+        "functions": [
+          "Hold",
+          "Resolve",
+          "materialize",
+          "RestoreHeads",
+          "acceptHead",
+          "BuildPostings"
+        ]
+      }
+    },
+    {
+      "id": "admission-order",
+      "task_type": "问题排查与诊断",
+      "capability_family": "模式与约束",
+      "subject": "schema",
+      "state": "candidate",
+      "invariant": "最终验证前按原序解释多次同 ID 编辑",
+      "observable": "解释一组编辑为什么在发布前失败",
+      "primary_mechanism": "policy_rules",
+      "extension_seam_id": "rules",
+      "workflow_ids": [
+        "catalog",
+        "commit"
+      ],
+      "source_anchors": [
+        "catalog/rules.go",
+        "catalog/validate.go",
+        "change/edit.go",
+        "engine/publish.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "catalog/rules.go",
+          "catalog/validate.go",
+          "change/edit.go",
+          "engine/publish.go"
+        ],
+        "functions": [
+          "Rules",
+          "Validate",
+          "Prepare",
+          "Commit"
+        ]
+      }
+    },
+    {
+      "id": "head-isolation-drill",
+      "task_type": "部署运维",
+      "capability_family": "启动恢复",
+      "subject": "namespace",
+      "state": "recovered",
+      "invariant": "实际头文件决定启动是否拒绝",
+      "observable": "用独立副本隔离坏图并核对可恢复图集合",
+      "primary_mechanism": "recovery_rollback",
+      "extension_seam_id": "reopen",
+      "workflow_ids": [
+        "restart"
+      ],
+      "source_anchors": [
+        "disk/heads.go",
+        "engine/database.go",
+        "index/postings.go",
+        "disk/directory.go",
+        "cmd/rillweaved/main.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "disk/heads.go",
+          "engine/database.go",
+          "index/postings.go",
+          "disk/directory.go",
+          "cmd/rillweaved/main.go"
+        ],
+        "functions": [
+          "RestoreHeads",
+          "acceptHead",
+          "BuildPostings",
+          "Open",
+          "run"
+        ]
+      }
+    },
+    {
+      "id": "handover-drill",
+      "task_type": "部署运维",
+      "capability_family": "并发与锁",
+      "subject": "directory",
+      "state": "owned",
+      "invariant": "写进程必须移交流程中独占目录",
+      "observable": "切换后验证确认版本不回退",
+      "primary_mechanism": "concurrency",
+      "extension_seam_id": "lock",
+      "workflow_ids": [
+        "restart",
+        "commit"
+      ],
+      "source_anchors": [
+        "disk/directory.go",
+        "cmd/rillweaved/main.go",
+        "engine/database.go",
+        "engine/publish.go",
+        "disk/heads.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "disk/directory.go",
+          "cmd/rillweaved/main.go",
+          "engine/database.go",
+          "engine/publish.go",
+          "disk/heads.go"
+        ],
+        "functions": [
+          "Open",
+          "run",
+          "publish",
+          "Write",
+          "materialize"
+        ]
+      }
+    },
+    {
+      "id": "backup-restore-drill",
+      "task_type": "部署运维",
+      "capability_family": "导出与冻结",
+      "subject": "image",
+      "state": "encoded",
+      "invariant": "源 revision 必须在导出时固定",
+      "observable": "运维恢复出声明版本且核验其拓扑",
+      "primary_mechanism": "export_freeze",
+      "extension_seam_id": "image",
+      "workflow_ids": [
+        "backup"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "image/codec.go",
+        "graph/model.go",
+        "engine/publish.go",
+        "engine/database.go",
+        "disk/heads.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "image/codec.go",
+          "graph/model.go",
+          "engine/publish.go",
+          "engine/database.go",
+          "disk/heads.go"
+        ],
+        "functions": [
+          "Export",
+          "Encode",
+          "Graph",
+          "Restore",
+          "checkedImage",
+          "Decode",
+          "Write"
+        ]
+      }
+    },
+    {
+      "id": "snapshot-copy-check",
+      "task_type": "部署运维",
+      "capability_family": "启动恢复",
+      "subject": "namespace",
+      "state": "recovered",
+      "invariant": "原地文件替换与目录级一致性不同",
+      "observable": "演练可使用的数据目录副本交付",
+      "primary_mechanism": "recovery_rollback",
+      "extension_seam_id": "reopen",
+      "workflow_ids": [
+        "restart",
+        "backup"
+      ],
+      "source_anchors": [
+        "disk/heads.go",
+        "engine/database.go",
+        "index/postings.go",
+        "engine/views.go",
+        "image/codec.go",
+        "graph/model.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "disk/heads.go",
+          "engine/database.go",
+          "index/postings.go",
+          "engine/views.go",
+          "image/codec.go",
+          "graph/model.go"
+        ],
+        "functions": [
+          "RestoreHeads",
+          "acceptHead",
+          "BuildPostings",
+          "Export",
+          "Encode",
+          "Graph"
+        ]
+      }
+    },
+    {
+      "id": "canary-dual-run",
+      "task_type": "部署运维",
+      "capability_family": "镜像恢复",
+      "subject": "namespace",
+      "state": "verified",
+      "invariant": "两份同源图可有不同本地修订",
+      "observable": "切流前跨实例检查弧语义并识别预期差异",
+      "primary_mechanism": "recovery_rollback",
+      "extension_seam_id": "restore",
+      "workflow_ids": [
+        "backup",
+        "adjacency"
+      ],
+      "source_anchors": [
+        "engine/publish.go",
+        "engine/database.go",
+        "image/codec.go",
+        "disk/heads.go",
+        "index/adjacency.go",
+        "walk/reach.go",
+        "walk/options.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/publish.go",
+          "engine/database.go",
+          "image/codec.go",
+          "disk/heads.go",
+          "index/adjacency.go",
+          "walk/reach.go",
+          "walk/options.go"
+        ],
+        "functions": [
+          "Restore",
+          "checkedImage",
+          "Decode",
+          "Write",
+          "Visit",
+          "Adjacent",
+          "topologyFor"
+        ]
+      }
+    },
+    {
+      "id": "contention-observation",
+      "task_type": "部署运维",
+      "capability_family": "并发与锁",
+      "subject": "directory",
+      "state": "owned",
+      "invariant": "开启锁失败与目录不可写不应被同等处理",
+      "observable": "部署安全地等待并给出停运信号",
+      "primary_mechanism": "concurrency",
+      "extension_seam_id": "lock",
+      "workflow_ids": [
+        "restart",
+        "commit"
+      ],
+      "source_anchors": [
+        "disk/directory.go",
+        "cmd/rillweaved/main.go",
+        "engine/database.go",
+        "engine/publish.go",
+        "disk/heads.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "disk/directory.go",
+          "cmd/rillweaved/main.go",
+          "engine/database.go",
+          "engine/publish.go",
+          "disk/heads.go"
+        ],
+        "functions": [
+          "Open",
+          "run",
+          "publish",
+          "Write",
+          "materialize"
+        ]
+      }
+    },
+    {
+      "id": "capacity-preflight",
+      "task_type": "部署运维",
+      "capability_family": "导出与冻结",
+      "subject": "image",
+      "state": "encoded",
+      "invariant": "图已通过实体约束仍可能超过镜像限制",
+      "observable": "对计划数据提供带规模依据的上线路径",
+      "primary_mechanism": "export_freeze",
+      "extension_seam_id": "image",
+      "workflow_ids": [
+        "backup",
+        "catalog"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "image/codec.go",
+        "graph/model.go",
+        "catalog/rules.go",
+        "catalog/validate.go",
+        "change/edit.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "image/codec.go",
+          "graph/model.go",
+          "catalog/rules.go",
+          "catalog/validate.go",
+          "change/edit.go"
+        ],
+        "functions": [
+          "Export",
+          "Encode",
+          "Graph",
+          "Rules",
+          "Validate",
+          "Prepare"
+        ]
+      }
+    },
+    {
+      "id": "durable-copy-rollback",
+      "task_type": "部署运维",
+      "capability_family": "并发与锁",
+      "subject": "revision",
+      "state": "validated",
+      "invariant": "未确认 rename 后实例禁止继续读写",
+      "observable": "切换回退时只从已核验图头继续",
+      "primary_mechanism": "concurrency",
+      "extension_seam_id": "publish",
+      "workflow_ids": [
+        "commit",
+        "restart"
+      ],
+      "source_anchors": [
+        "engine/publish.go",
+        "disk/heads.go",
+        "engine/database.go",
+        "index/postings.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/publish.go",
+          "disk/heads.go",
+          "engine/database.go",
+          "index/postings.go"
+        ],
+        "functions": [
+          "publish",
+          "Write",
+          "materialize",
+          "RestoreHeads",
+          "acceptHead",
+          "BuildPostings"
+        ]
+      }
+    },
+    {
+      "id": "directory-permissions",
+      "task_type": "部署运维",
+      "capability_family": "并发与锁",
+      "subject": "directory",
+      "state": "owned",
+      "invariant": "持久目录需要创建临时文件和同步入口",
+      "observable": "在实际受限账户下确认读取与持久写",
+      "primary_mechanism": "concurrency",
+      "extension_seam_id": "lock",
+      "workflow_ids": [
+        "restart"
+      ],
+      "source_anchors": [
+        "disk/directory.go",
+        "cmd/rillweaved/main.go",
+        "engine/database.go",
+        "disk/heads.go",
+        "index/postings.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "disk/directory.go",
+          "cmd/rillweaved/main.go",
+          "engine/database.go",
+          "disk/heads.go",
+          "index/postings.go"
+        ],
+        "functions": [
+          "Open",
+          "run",
+          "RestoreHeads",
+          "acceptHead",
+          "BuildPostings"
+        ]
+      }
+    },
+    {
+      "id": "pin-drain",
+      "task_type": "部署运维",
+      "capability_family": "视图生命周期",
+      "subject": "handle",
+      "state": "held",
+      "invariant": "持有的旧 HTTP 句柄不能过进程边界",
+      "observable": "提供停机可重复读工作负载的排程证据",
+      "primary_mechanism": "resource_lifecycle",
+      "extension_seam_id": "hold",
+      "workflow_ids": [
+        "pin",
+        "restart"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "view/handles.go",
+        "engine/database.go",
+        "disk/heads.go",
+        "index/postings.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "view/handles.go",
+          "engine/database.go",
+          "disk/heads.go",
+          "index/postings.go"
+        ],
+        "functions": [
+          "Hold",
+          "Resolve",
+          "materialize",
+          "RestoreHeads",
+          "acceptHead",
+          "BuildPostings"
+        ]
+      }
+    },
+    {
+      "id": "readiness-gate",
+      "task_type": "部署运维",
+      "capability_family": "启动恢复",
+      "subject": "namespace",
+      "state": "recovered",
+      "invariant": "就绪不仅是端口通且重建后的查询产出要正确",
+      "observable": "部署放流门禁核对图像与候选索引",
+      "primary_mechanism": "recovery_rollback",
+      "extension_seam_id": "reopen",
+      "workflow_ids": [
+        "restart",
+        "lookup"
+      ],
+      "source_anchors": [
+        "disk/heads.go",
+        "engine/database.go",
+        "index/postings.go",
+        "catalog/rules.go",
+        "engine/queries.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "disk/heads.go",
+          "engine/database.go",
+          "index/postings.go",
+          "catalog/rules.go",
+          "engine/queries.go"
+        ],
+        "functions": [
+          "RestoreHeads",
+          "acceptHead",
+          "BuildPostings",
+          "Equal",
+          "LookupRule",
+          "Lookup"
+        ]
+      }
+    },
+    {
+      "id": "restore-isolated-namespace",
+      "task_type": "部署运维",
+      "capability_family": "镜像恢复",
+      "subject": "namespace",
+      "state": "verified",
+      "invariant": "恢复需未占用名称，不能覆盖原图",
+      "observable": "自动演练有明确回收和环境隔离的恢复",
+      "primary_mechanism": "recovery_rollback",
+      "extension_seam_id": "restore",
+      "workflow_ids": [
+        "backup",
+        "restart"
+      ],
+      "source_anchors": [
+        "engine/publish.go",
+        "engine/database.go",
+        "image/codec.go",
+        "disk/heads.go",
+        "disk/directory.go",
+        "cmd/rillweaved/main.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/publish.go",
+          "engine/database.go",
+          "image/codec.go",
+          "disk/heads.go",
+          "disk/directory.go",
+          "cmd/rillweaved/main.go"
+        ],
+        "functions": [
+          "Restore",
+          "checkedImage",
+          "Decode",
+          "Write",
+          "Open",
+          "run"
+        ]
+      }
+    },
+    {
+      "id": "mixed-service-contract",
+      "task_type": "部署运维",
+      "capability_family": "镜像恢复",
+      "subject": "namespace",
+      "state": "verified",
+      "invariant": "新实例来源同图不保证返回相同路径见证",
+      "observable": "升级部署核对输入、修订和类型规则",
+      "primary_mechanism": "recovery_rollback",
+      "extension_seam_id": "restore",
+      "workflow_ids": [
+        "backup",
+        "path"
+      ],
+      "source_anchors": [
+        "engine/publish.go",
+        "engine/database.go",
+        "image/codec.go",
+        "disk/heads.go",
+        "walk/path.go",
+        "walk/options.go",
+        "engine/queries.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/publish.go",
+          "engine/database.go",
+          "image/codec.go",
+          "disk/heads.go",
+          "walk/path.go",
+          "walk/options.go",
+          "engine/queries.go"
+        ],
+        "functions": [
+          "Restore",
+          "checkedImage",
+          "Decode",
+          "Write",
+          "Path",
+          "visit"
+        ]
+      }
+    },
+    {
+      "id": "endpoint-cut-control",
+      "task_type": "部署运维",
+      "capability_family": "并发与锁",
+      "subject": "revision",
+      "state": "validated",
+      "invariant": "多端点分步编辑可能在原子提交之外不可见",
+      "observable": "导出上线操作防止中间状态被客户端读到",
+      "primary_mechanism": "concurrency",
+      "extension_seam_id": "publish",
+      "workflow_ids": [
+        "commit"
+      ],
+      "source_anchors": [
+        "engine/publish.go",
+        "disk/heads.go",
+        "engine/database.go",
+        "catalog/validate.go",
+        "change/edit.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/publish.go",
+          "disk/heads.go",
+          "engine/database.go",
+          "catalog/validate.go",
+          "change/edit.go"
+        ],
+        "functions": [
+          "publish",
+          "Write",
+          "materialize",
+          "Validate",
+          "Prepare",
+          "Commit"
+        ]
+      }
+    },
+    {
+      "id": "archive-replay-readiness",
+      "task_type": "部署运维",
+      "capability_family": "导出与冻结",
+      "subject": "image",
+      "state": "encoded",
+      "invariant": "离线图材料可能合法但连通性不是预期",
+      "observable": "安排恢复发布并证明可消费的结构",
+      "primary_mechanism": "export_freeze",
+      "extension_seam_id": "image",
+      "workflow_ids": [
+        "backup",
+        "components"
+      ],
+      "source_anchors": [
+        "engine/views.go",
+        "image/codec.go",
+        "graph/model.go",
+        "walk/components.go",
+        "index/adjacency.go",
+        "engine/queries.go"
+      ],
+      "existing_touch_points": {
+        "files": [
+          "engine/views.go",
+          "image/codec.go",
+          "graph/model.go",
+          "walk/components.go",
+          "index/adjacency.go",
+          "engine/queries.go"
+        ],
+        "functions": [
+          "Export",
+          "Encode",
+          "Graph",
+          "Components",
+          "Visit"
+        ]
+      }
+    }
+  ]
+}
