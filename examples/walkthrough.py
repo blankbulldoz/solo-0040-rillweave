@@ -197,6 +197,42 @@ def expect_components(base):
     return "selected kind changes strong connectivity; directed quotient link verified"
 
 
+def expect_stages(base):
+    path = GRAPH + "/stages"
+    value = request(base, path, "POST",
+                    {"targets": ["tip"], "max_parallel": 2, "kinds": ["join"]})["result"]
+    # The hinge cycle is one atomic group; tip is its only successor stage.
+    assert value["optimal"] and value["method"] == "exact"
+    assert value["lower_bound_stages"] == value["upper_bound_stages"] == 2
+    assert [g["id"] for g in value["stages"][0]["groups"]] == ["hinge"]
+    assert [g["id"] for g in value["stages"][1]["groups"]] == ["tip"]
+    hinge = next(g for g in value["groups"] if g["id"] == "hinge")
+    assert hinge["vertices"] == ["hinge", "keel", "spar"]
+    # The boundary is the original arc, auditable in the source graph.
+    assert [(b["arc"], b["source_group"], b["target_group"]) for b in value["boundary_arcs"]] == [
+        ("stem", "hinge", "tip"),
+    ]
+    reason = next(r for r in value["wait_reasons"] if r["group"] == "tip")
+    assert reason["waiting_on"] == ["hinge"] and reason["boundary_arcs"] == ["stem"]
+    # All arc kinds merge every vertex into one SCC, so one stage suffices.
+    merged = request(base, path, "POST", {"targets": ["tip"], "max_parallel": 4})["result"]
+    assert merged["upper_bound_stages"] == 1 and len(merged["groups"]) == 1
+    # A precedence-ready group deferred only by capacity names the lane holders.
+    width_one = request(base, path, "POST",
+                        {"targets": ["tip"], "max_parallel": 1, "kinds": ["join"]})["result"]
+    assert width_one["upper_bound_stages"] == 2
+    # Unrelated vertices are excluded from the prerequisite closure.
+    keel_only = request(base, path, "POST",
+                        {"targets": ["keel"], "max_parallel": 2, "kinds": ["join"]})["result"]
+    assert "tip" not in keel_only["included"]
+    assert set(keel_only["included"]) == {"hinge", "keel", "spar"}
+    request(base, path, "POST", {"targets": ["tip"], "max_parallel": 0}, 400, "invalid")
+    request(base, path, "POST", {"targets": ["ghost"], "max_parallel": 2}, 404, "not_found")
+    request(base, path, "POST",
+            {"targets": ["tip"], "max_parallel": 2, "budget": 1}, 422, "budget_exhausted")
+    return "cycle kept atomic; boundary arcs audited; precedence and capacity waits explained"
+
+
 def expect_pin(base):
     pin = hold(base)
     query = "?view=" + pin
@@ -255,7 +291,8 @@ def expect_restart(binary, data):
 WORKFLOWS = {
     "catalog": expect_catalog, "commit": expect_commit, "vertex": expect_vertex,
     "lookup": expect_lookup, "adjacency": expect_adjacency, "reach": expect_reach,
-    "path": expect_path, "components": expect_components, "pin": expect_pin,
+    "path": expect_path, "components": expect_components, "stages": expect_stages,
+    "pin": expect_pin,
     "compare": expect_compare, "backup": expect_backup, "restart": expect_restart,
 }
 

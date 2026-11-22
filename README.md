@@ -39,6 +39,7 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | POST | `G/reach` | `root`, `max_hops`, optional selection; vertices with minimum hops |
 | POST | `G/path` | `from`, `to`, `max_hops`, optional selection; cheapest bounded path |
 | POST | `G/components` | Optional `kinds`, `budget`; strongly connected groups and directed links |
+| POST | `G/stages` | `targets`, `max_parallel`, optional selection; parallel dependency stages |
 | POST | `G/pins` | Holds current state; returns a handle and its revision |
 | DELETE | `G/pins/{handle}` | Releases handle; in-flight reads already resolved may finish |
 | POST | `G/compare` | `from` and `to` handles (empty means head); identity-based difference |
@@ -87,6 +88,34 @@ uses 300000; exhaustion rejects the whole query. `limit` for lookup and
 adjacency defaults to 100, capped at 1000. It limits returned rows, not
 matching count or budget charge. A valid no-route result is `found:false`;
 that is different from a missing endpoint or a query that ran out of budget.
+
+### Dependency stages
+
+`POST G/stages` turns the selected subgraph into a parallel execution plan for
+the closure of the requested `targets`. Inputs are `targets` (vertex IDs),
+`max_parallel` in `[1,1000]` and the usual `kinds`, `direction` and `budget`
+selection. The endpoint first walks reverse arcs to include every necessary
+prerequisite; unrelated vertices never occupy a slot. Each strong component is
+one indivisible scheduling unit, so vertices on a cycle always enter the same
+stage together. The condensation DAG is then packed into the fewest stages
+that respect both precedence and the per-stage group limit.
+
+The result reports `groups`, the `stages` with their parallel groups, and
+`boundary_arcs` carrying the original arc ID, kind and endpoints for every
+cross-group ordering decision, so each boundary is auditable in the source
+graph. `wait_reasons` explain every non-first stage: precedence waits name the
+blocking groups and the exact boundary arcs, while capacity waits also name the
+groups that held every lane at the earliest legal stage.
+
+When the closure has at most 24 condensation groups the solver searches for
+the provably minimum stage count (`optimal:true`, `method:"exact"`) under a
+200000-node search allowance. Larger closures, or a search that reaches that
+allowance, fall back to a deepest-chain-first greedy plan
+(`optimal:false`, `method:"heuristic"`). In every response
+`lower_bound_stages` is the max of the longest dependency chain and the
+width-packing bound, and `upper_bound_stages` is the stage count of the
+returned, always-executable plan; the two coincide exactly when optimal.
+Budget exhaustion rejects the request like any other walk.
 
 ### Storage and Verification
 
