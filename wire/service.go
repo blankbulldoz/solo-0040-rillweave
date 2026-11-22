@@ -75,7 +75,7 @@ func codeStatus(code graph.Code) int {
 		return http.StatusBadRequest
 	case graph.Missing:
 		return http.StatusNotFound
-	case graph.Conflict:
+	case graph.Conflict, graph.RebaseConflict, graph.RebaseUnavailable:
 		return http.StatusConflict
 	case graph.Budget:
 		return http.StatusUnprocessableEntity

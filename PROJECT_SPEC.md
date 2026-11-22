@@ -32,6 +32,21 @@ vertex while leaving any adjacent arc is rejected. Positive arc costs are
 integers. Properties are strings, signed 64-bit integers or booleans;
 undeclared properties, explicit nulls and type coercion are not supported.
 
+A commit without a `rebase` field keeps the original stale-base rejection: a
+base other than the current head never publishes. With `"rebase":"safe"`, a
+stale batch is replayed onto the head only when the intervening retained
+revisions are demonstrably independent. Independence means no shared entity
+key changed on both branches (a head change later restored to the base value
+is an empty net diff and is independent), no unique value is claimed by
+different owners on the two branches, no arc endpoint or dropped vertex
+crosses the two write sets, and no committed schema change touches a kind,
+including arc endpoint kinds, used by the batch. The merged final state is
+validated before publication; anything provably unsafe returns
+`rebase_conflict`, and a base absent from the bounded ephemeral rebase window
+returns `rebase_unavailable`. Both route the caller to manual reconciliation
+rather than overwriting the head. The rebase window holds the eight most
+recent prior heads per graph in process memory and is not durable history.
+
 The graph namespace moves from absent to installed. An edit set moves from
 candidate to validated to published or rejected. A graph revision can move
 from head to detached; explicitly held references remain usable. A handle
@@ -49,7 +64,7 @@ until restart. The instance must own its data directory exclusively.
 | Workflow | Success | Alternative or rejection |
 | --- | --- | --- |
 | catalog | Install or atomically replace typed rules; inspect a chosen view | Rule changes leaving incompatible graph state are rejected |
-| commit | Publish a final consistent graph at the next revision | Stale or invalid edits do not publish; unique swaps may apply in one revision |
+| commit | Publish a final consistent graph at the next revision; an opt-in safe rebase replays a proven-independent stale batch | Stale or invalid edits do not publish; unsafe rebases return rebase_conflict, aged-out bases rebase_unavailable; unique swaps may apply in one revision |
 | vertex | Return exact contents and chosen revision | A vertex missing from that view returns not found |
 | lookup | Resolve typed equality via a vertex posting | Missing properties do not match a present value; wrong types are rejected |
 | adjacency | List directed arc identities and endpoints | Both directions include a self-loop once; mismatched kinds do not pass |
@@ -70,5 +85,7 @@ bounded walkthrough against a temporary database. Formal tests are deferred.
 The engine is designed for bounded local graphs. It clones the candidate and
 rebuilds indexes per commit. It does not claim distributed replication, online
 index building, arbitrary query languages, authentication, multi-graph atomic
-commits or durable revision history. The image digest establishes byte
-integrity, not authenticity. Run the service only in a trusted environment.
+commits or durable revision history. Safe rebases rely on a small ephemeral
+snapshot window, not retained history; an undecidable base is always refused,
+never guessed. The image digest establishes byte integrity, not authenticity.
+Run the service only in a trusted environment.

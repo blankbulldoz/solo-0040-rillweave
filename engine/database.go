@@ -12,7 +12,14 @@ import (
 	"rillweave/view"
 )
 
-const MaxGraphs = 32
+const (
+	MaxGraphs = 32
+	// MaxRebaseWindow bounds the immutable snapshots retained per graph purely
+	// in process memory for opt-in safe rebases. The node keeps no durable
+	// revision history, so a base older than the window, or any base after a
+	// restart, is undecidable and routes the client to manual reconciliation.
+	MaxRebaseWindow = 8
+)
 
 type state struct {
 	graph *graph.Graph
@@ -28,6 +35,9 @@ type Database struct {
 	mu    sync.RWMutex
 	disk  *disk.Directory
 	heads map[string]*state
+	// rear maps each graph to its newest-to-oldest retained prior heads. It is
+	// ephemeral by contract: nothing here is written to the data directory.
+	rear  map[string][]*state
 	held  view.Handles[*state]
 	fault bool
 }
@@ -37,7 +47,10 @@ func Open(root string) (*Database, error) {
 	if err != nil {
 		return nil, err
 	}
-	db := &Database{disk: dir, heads: make(map[string]*state), held: view.New[*state]()}
+	db := &Database{
+		disk: dir, heads: make(map[string]*state),
+		rear: make(map[string][]*state), held: view.New[*state](),
+	}
 	err = dir.RestoreHeads(db.acceptHead)
 	if err != nil {
 		_ = dir.Close()

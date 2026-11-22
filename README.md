@@ -25,14 +25,16 @@ database, not a place to stage arbitrary inputs or share writes between servers.
 Let `G` be `/rill/v1/graphs/{name}`. Pass `?view={handle}` on an applicable
 read to use a fixed view rather than the head. Normal reads return `graph`,
 `revision` and `result`. Errors give `code` and `details`: 400 invalid input,
-404 absent resource, 409 conflicting current graph state, 422 budget/capacity,
-503 storage unavailable. Unrecognized routes use the HTTP mux response.
+404 absent resource, 409 conflicting current graph state (including
+`rebase_conflict` and `rebase_unavailable` for opt-in safe rebases), 422
+budget/capacity, 503 storage unavailable. Unrecognized routes use the HTTP mux
+response.
 
 | Method | Resource | Input / Result |
 | --- | --- | --- |
 | POST | `/rill/v1/graphs` | `{"name":"...","schema":{...}}`; creates revision 1 |
 | GET | `G/catalog` | Schema, vertex and arc counts |
-| POST | `G/commit` | `{"base":1,"edits":[...]}`; new head summary |
+| POST | `G/commit` | `{"base":1,"edits":[...],"rebase":"safe"?}`; new head summary |
 | GET | `G/vertices/{id}` | One vertex in the selected revision |
 | POST | `G/lookup` | `kind`, `property`, `value`, optional `limit`; IDs and exact count |
 | POST | `G/adjacency` | `vertex`, optional selection and `limit`; matching arcs by ID |
@@ -72,6 +74,31 @@ be required but not unique. Names are lowercase ASCII identifiers up to 64
 characters (digits, hyphens and underscores are allowed after the first
 alphanumeric). Values are text up to 1024 bytes, int64 or boolean.
 
+### Safe rebase of stale commits
+
+Without `rebase`, a commit whose `base` is not the current head is rejected
+with `conflict`, exactly as before; this default never changes. A client that
+can tolerate automatic replay sends `"rebase":"safe"`. The server then applies
+the edits onto the current head only when every intervening revision is
+provably independent of the batch, and reports one of two distinct 409 codes
+otherwise so the caller knows what to do:
+
+- `rebase_conflict`: automatic replay is provably unsafe. This covers an
+  entity key the head changed to a different record while the batch edits the
+  same key (a key the head changed and later restored to its base value is a
+  no-op diff and stays safe); two different vertex keys claiming one unique
+  value; a batch arc losing an endpoint the head removed, or a dropped vertex
+  that still anchors a head arc; and a committed schema change that alters a
+  vertex or arc kind, including endpoint kinds, used by the batch. The client
+  must refetch and reconcile manually.
+- `rebase_unavailable`: the base revision is not in the bounded process-local
+  rebase window. The node retains the eight most recent prior heads per graph
+  in memory only; older bases and every base after a restart are undecidable,
+  so the client must refetch rather than risk a guessed merge.
+
+A replayed batch is validated both against its own base and again as the final
+merged head state. Any other `rebase` value is rejected as invalid input.
+
 Selection `direction` is `out` (default), `in` or `both`. A reversed step
 uses the stored arc ID and cost; the result lists vertices in traversal
 sequence. `kinds` empty means all. `max_hops` in [0,32] includes zero hops
@@ -108,6 +135,6 @@ python3 examples/walkthrough.py --workflow all
 
 The Python 3 walkthrough starts temporary server processes with bounded
 synthetic inputs and prints success and rejection evidence. Use
-`--workflow catalog`, `commit`, `vertex`, `lookup`, `adjacency`, `reach`,
-`path`, `components`, `pin`, `compare`, `backup` or `restart` to select one.
-Formal tests are deferred; no test runner is required.
+`--workflow catalog`, `commit`, `rebase`, `vertex`, `lookup`, `adjacency`,
+`reach`, `path`, `components`, `pin`, `compare`, `backup` or `restart` to
+select one. Formal tests are deferred; no test runner is required.

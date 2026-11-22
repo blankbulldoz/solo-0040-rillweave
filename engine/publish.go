@@ -40,11 +40,47 @@ func (db *Database) Commit(name string, batch change.Batch) (Summary, error) {
 	if err != nil {
 		return Summary{}, err
 	}
-	next, err := change.Prepare(head.graph, batch)
-	if err != nil {
-		return Summary{}, err
+	if batch.Rebase != "" && batch.Rebase != change.RebaseSafe {
+		return Summary{}, graph.Fail(graph.Invalid,
+			"unsupported rebase mode %q; only %q is accepted", batch.Rebase, change.RebaseSafe)
+	}
+	var next *graph.Graph
+	if batch.Rebase == change.RebaseSafe && batch.Base != head.graph.Revision {
+		base, err := db.rebaseBase(name, batch.Base)
+		if err != nil {
+			return Summary{}, err
+		}
+		next, err = change.Rebase(base.graph, head.graph, batch)
+		if err != nil {
+			return Summary{}, err
+		}
+	} else {
+		next, err = change.Prepare(head.graph, batch)
+		if err != nil {
+			return Summary{}, err
+		}
 	}
 	return db.publish(next)
+}
+
+// rebaseBase locates an immutable retained snapshot at the requested revision.
+// Retention is bounded and ephemeral, so a missing snapshot is reported as an
+// explicit rebase_unavailable rather than guessed at.
+func (db *Database) rebaseBase(name string, revision uint64) (*state, error) {
+	if revision == 0 || revision > db.heads[name].graph.Revision {
+		return nil, graph.Fail(graph.RebaseUnavailable,
+			"revision %d is outside the bounded rebase window", revision)
+	}
+	if revision == db.heads[name].graph.Revision {
+		return db.heads[name], nil
+	}
+	for _, prior := range db.rear[name] {
+		if prior.graph.Revision == revision {
+			return prior, nil
+		}
+	}
+	return nil, graph.Fail(graph.RebaseUnavailable,
+		"revision %d is outside the bounded rebase window; refetch and reconcile manually", revision)
 }
 
 func (db *Database) mayInstall(name string) error {
@@ -76,6 +112,12 @@ func (db *Database) publish(g *graph.Graph) (Summary, error) {
 		}
 		return Summary{}, graph.Fail(graph.Unavailable, "graph image could not be installed")
 	}
+	if previous := db.heads[g.Name]; previous != nil {
+		db.rear[g.Name] = append([]*state{previous}, db.rear[g.Name]...)
+		if len(db.rear[g.Name]) > MaxRebaseWindow {
+			db.rear[g.Name] = db.rear[g.Name][:MaxRebaseWindow]
+		}
+	}
 	db.heads[g.Name] = next
 	return summary(g), nil
 }
@@ -101,5 +143,8 @@ func (db *Database) Restore(name string, encoded image.Envelope) (RestoreResult,
 	if err != nil {
 		return RestoreResult{}, err
 	}
+	// A restored image is a new local identity: stale snapshots from a prior
+	// graph under this name must never anchor a rebase.
+	db.rear[name] = nil
 	return RestoreResult{installed, source}, nil
 }

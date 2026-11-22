@@ -10,6 +10,12 @@ const (
 	Conflict    Code = "conflict"
 	Budget      Code = "budget_exhausted"
 	Unavailable Code = "unavailable"
+	// RebaseConflict marks an opt-in rebase whose intervening head changes make
+	// an automatic replay unsafe; the caller must reconcile the batch manually.
+	RebaseConflict Code = "rebase_conflict"
+	// RebaseUnavailable marks an opt-in rebase whose base revision is no longer
+	// held in the bounded process-local rebase window, so safety is undecidable.
+	RebaseUnavailable Code = "rebase_unavailable"
 )
 
 type Problem struct {

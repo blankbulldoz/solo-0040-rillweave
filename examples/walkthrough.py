@@ -73,6 +73,10 @@ def put_vertex(key, tag=None):
     return {"op": "put_vertex", "vertex": {"id": key, "kind": "strut", "properties": props}}
 
 
+def put_typed_vertex(kind, key, **props):
+    return {"op": "put_vertex", "vertex": {"id": key, "kind": kind, "properties": props}}
+
+
 def put_arc(key, source, target, cost, kind="join"):
     return {"op": "put_arc", "arc": {
         "id": key, "kind": kind, "from": source, "to": target, "cost": cost,
@@ -81,6 +85,15 @@ def put_arc(key, source, target, cost, kind="join"):
 
 def commit(base, revision, edits, status=200, code=None):
     return request(base, GRAPH + "/commit", "POST", {"base": revision, "edits": edits}, status, code)
+
+
+def safe_commit(base, revision, edits, status=200, code=None):
+    body = {"base": revision, "edits": edits, "rebase": "safe"}
+    return request(base, GRAPH + "/commit", "POST", body, status, code)
+
+
+def current_revision(base):
+    return catalog(base)["revision"]
 
 
 def catalog(base, view=""):
@@ -129,6 +142,121 @@ def expect_commit(base):
     assert catalog(base)["revision"] == 3
     assert request(base, GRAPH + "/vertices/hinge")["result"]["properties"]["tag"] == "south"
     return "unique-value swap committed; stale base and dangling arc blocked"
+
+
+def expect_rebase(base):
+    # 1. Unrelated intervening writes: a stale batch replays onto the head.
+    r0 = current_revision(base)
+    commit(base, r0, [put_vertex("rivet", "east")])
+    head = current_revision(base)
+    assert head == r0 + 1
+    receipt = safe_commit(base, r0, [put_vertex("pinion", "west")])
+    assert receipt["revision"] == head + 1
+    assert request(base, GRAPH + "/vertices/rivet")["result"]["properties"]["tag"] == "east"
+    assert request(base, GRAPH + "/vertices/pinion")["result"]["properties"]["tag"] == "west"
+
+    # 2. The same key changed on the head and then changed back is a no-op diff
+    #    against the client's base, so the batch remains safe.
+    r2 = current_revision(base)
+    commit(base, r2, [put_vertex("rivet", "restored")])
+    commit(base, r2 + 1, [put_vertex("rivet", "east")])
+    # The same restore rule applies to an arc key: head changes its cost and
+    # puts it back, so the net diff against the client base is empty.
+    commit(base, current_revision(base), [put_arc("bypass", "hinge", "keel", 7)])
+    commit(base, current_revision(base), [put_arc("bypass", "hinge", "keel", 1)])
+    assert current_revision(base) == r2 + 4
+    receipt = safe_commit(base, r2, [put_vertex("socket", "mid")])
+    assert receipt["revision"] == r2 + 5
+    assert request(base, GRAPH + "/vertices/rivet")["result"]["properties"]["tag"] == "east"
+
+    # 3. A divergent write to one entity key cannot be resolved automatically.
+    r3 = current_revision(base)
+    commit(base, r3, [put_vertex("rivet", "diverging-head")])
+    safe_commit(base, r3, [put_vertex("rivet", "diverge")], 409, "rebase_conflict")
+    assert current_revision(base) == r3 + 1
+    assert request(base, GRAPH + "/vertices/rivet")["result"]["properties"]["tag"] == "diverging-head"
+    # The same entity-key rule applies to arcs: a competing cost is rejected.
+    r3b = current_revision(base)
+    commit(base, r3b, [put_arc("bypass", "hinge", "keel", 4)])
+    safe_commit(base, r3b, [put_arc("bypass", "hinge", "keel", 6)], 409, "rebase_conflict")
+    assert request(base, GRAPH + "/adjacency", "POST",
+                   {"vertex": "hinge", "kinds": ["join"], "limit": 100})["result"]["matched"]
+
+    # 4. Different keys fighting over one unique value: same contention class,
+    #    even though neither client touched the head's entity key.
+    r4 = current_revision(base)
+    commit(base, r4, [put_vertex("collar", "shared")])
+    safe_commit(base, r4, [put_vertex("bushing", "shared")], 409, "rebase_conflict")
+    assert request(base, GRAPH + "/vertices/collar")["result"]["properties"]["tag"] == "shared"
+    request(base, GRAPH + "/vertices/bushing", status=404, code="not_found")
+
+    # 4b. Crossed write sets: the head removes a vertex that a stale batch arc
+    #     still points at, and a stale vertex drop leaves a head arc dangling.
+    r4b = current_revision(base)
+    commit(base, r4b, [
+        {"op": "drop_arc", "id": "stem"}, {"op": "drop_arc", "id": "track"},
+        {"op": "drop_vertex", "id": "tip"},
+    ])
+    safe_commit(base, r4b, [put_arc("stem", "spar", "tip", 2)], 409, "rebase_conflict")
+    r4c = current_revision(base)
+    commit(base, r4c, [put_vertex("keel", "mid-keel")])
+    # The batch is valid on its own base because it drops every arc it anchors,
+    # but the head's untouched cross arc makes the replay cross the write sets.
+    safe_commit(base, r4c, [
+        {"op": "drop_arc", "id": "bypass"}, {"op": "drop_arc", "id": "cross"},
+        {"op": "drop_vertex", "id": "keel"},
+    ], 409, "rebase_conflict")
+    assert request(base, GRAPH + "/vertices/keel")["result"]["properties"]["tag"] == "mid-keel"
+
+    # 5. An endpoint rule for an arc kind the batch uses forces manual review;
+    #    an unrelated rule widening stays compatible and still rebases.
+    r5 = current_revision(base)
+    retargeted = {**SCHEMA, "vertices": {
+        **SCHEMA["vertices"],
+        "bracket": {"properties": {"code": {"kind": "text", "unique": True}}},
+    }, "arcs": {**SCHEMA["arcs"], "join": {"from": "strut", "to": "bracket"}}}
+    join_arcs = [
+        ("brace", "hinge", "brace-end", 8), ("brace-alt", "hinge", "brace-alt-end", 8),
+        ("bypass", "hinge", "bypass-end", 1), ("cross", "keel", "cross-end", 1),
+        ("stem", "spar", "stem-end", 1), ("return", "spar", "return-end", 2),
+        ("loop", "hinge", "loop-end", 1),
+    ]
+    migration = [
+        {"op": "set_schema", "schema": retargeted},
+        put_typed_vertex("bracket", "bracket-anchor", code="bracket-code"),
+    ]
+    migration += [
+        put_arc(arc_id, source, target, cost) for arc_id, source, target, cost in join_arcs
+    ]
+    migration += [put_typed_vertex("bracket", target, code=f"code-{target}")
+                  for _, _, target, _ in join_arcs]
+    commit(base, r5, migration)
+    # A stale client still assumes join terminates on a strut vertex.
+    stale_join = put_arc("brace", "hinge", "spar", 9)
+    safe_commit(base, r5, [stale_join], 409, "rebase_conflict")
+    receipt = safe_commit(base, r5, [put_vertex("gusset", "trim")])
+    assert receipt["revision"] == current_revision(base)
+
+    # 6. The rebase window is bounded: once the base snapshot ages out, the
+    #    server must refuse rather than guess. MaxRebaseWindow retains 8 heads.
+    r6 = current_revision(base)
+    for n in range(9):
+        commit(base, current_revision(base), [put_vertex(f"filler-{n}", f"fill-{n}")])
+    assert current_revision(base) == r6 + 9
+    safe_commit(base, r6, [put_vertex("late", "late")], 409, "rebase_unavailable")
+
+    # 7. Protocol guards: unknown modes are invalid input, a non-stale safe
+    #    commit behaves like a normal commit, and legacy stale rejection is
+    #    unchanged for callers that never opt in.
+    body = {"base": r6, "edits": [put_vertex("refused", "x")], "rebase": "force"}
+    request(base, GRAPH + "/commit", "POST", body, 400, "invalid")
+    now = current_revision(base)
+    receipt = safe_commit(base, now, [put_vertex("fresh", "bright")])
+    assert receipt["revision"] == now + 1
+    commit(base, r6, [put_vertex("legacy", "old")], 409, "conflict")
+    return ("safe rebase accepts unrelated and restored writes; divergent keys, "
+            "unique contention and endpoint rules route to manual handling; "
+            "aged-out bases are undecidable and legacy stale calls still reject")
 
 
 def expect_vertex(base):
@@ -247,16 +375,20 @@ def expect_restart(binary, data):
         q = {"kind": "strut", "property": "tag", "value": "mid"}
         assert request(base, GRAPH + "/lookup", "POST", q)["result"]["ids"] == ["keel"]
         request(base, GRAPH + "/catalog?view=" + pin, status=404, code="not_found")
+        # Rebase history is process-local: a stale base known before the restart
+        # is undecidable afterwards, never silently merged.
+        safe_commit(base, 2, [put_vertex("after", "restart")], 409, "rebase_unavailable")
     (data / "abutment.rill").write_text('{"format":', encoding="ascii")
     blocked_start(binary, data, 'recover graph "abutment"')
     return "directory held exclusively; durable head and index recovered; corruption fails startup"
 
 
 WORKFLOWS = {
-    "catalog": expect_catalog, "commit": expect_commit, "vertex": expect_vertex,
-    "lookup": expect_lookup, "adjacency": expect_adjacency, "reach": expect_reach,
-    "path": expect_path, "components": expect_components, "pin": expect_pin,
-    "compare": expect_compare, "backup": expect_backup, "restart": expect_restart,
+    "catalog": expect_catalog, "commit": expect_commit, "rebase": expect_rebase,
+    "vertex": expect_vertex, "lookup": expect_lookup, "adjacency": expect_adjacency,
+    "reach": expect_reach, "path": expect_path, "components": expect_components,
+    "pin": expect_pin, "compare": expect_compare, "backup": expect_backup,
+    "restart": expect_restart,
 }
 
 
