@@ -20,18 +20,29 @@ import (
 func main() {
 	addr := flag.String("listen", "127.0.0.1:8174", "HTTP listen address")
 	root := flag.String("data", "rillweave-data", "directory of durable graph heads")
+	quarantine := flag.Bool("recover-quarantine", false,
+		"serve graphs whose head files pass every check and quarantine unusable heads instead of failing startup")
 	flag.Parse()
-	if err := run(*addr, *root); err != nil {
+	if err := run(*addr, *root, *quarantine); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func run(addr, root string) error {
-	db, err := engine.Open(root)
+func run(addr, root string, quarantine bool) error {
+	var opts []engine.Option
+	if quarantine {
+		opts = append(opts, engine.IsolateUnusableHeads())
+	}
+	db, err := engine.Open(root, opts...)
 	if err != nil {
 		return err
 	}
 	defer db.Close()
+	report := db.Report()
+	if report.Mode == "quarantine" {
+		log.Printf("quarantine recovery: %d graph(s) served, %d head file(s) isolated",
+			report.Recovered, len(report.Quarantined))
+	}
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err

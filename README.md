@@ -20,6 +20,27 @@ usable instance, 503 on a detected durability fault). The service is meant for
 a trusted network and does not authenticate requests. A data directory is a
 database, not a place to stage arbitrary inputs or share writes between servers.
 
+## Quarantine recovery
+
+By default any installed head file that fails a check stops startup. An
+operator who needs the remaining graphs can start explicitly with
+`-recover-quarantine`. Recovery then serves only names whose file passes the
+whole path — envelope JSON, image format, payload digest, catalog rules,
+final-state validity and disk-name/image-name agreement — and isolates every
+other head file. Startup prints `quarantine recovery: N graph(s) served,
+M head file(s) isolated` and each isolated file with its reason.
+
+`GET /rill/v1/recovery` reports `mode` (`strict` or `quarantine`),
+`recovered` and a `quarantined` list of `{name, file, claimed, reason}`.
+`claimed` appears when a valid-looking payload names a different graph than
+its file. A quarantined name returns 409 `conflict` on reads, pins, commits
+and install; if a name is only claimed by a mismatched file and no valid file
+proves it, install under that name is rejected too. Recovery never renames,
+rewrites or deletes the original head files, so repeating startup with the
+same flag yields the same isolation, and a later strict start still reports
+the damaged file. The mode changes availability, not admission: an isolated
+file is not repaired and cannot be read through the API.
+
 ## API
 
 Let `G` be `/rill/v1/graphs/{name}`. Pass `?view={handle}` on an applicable

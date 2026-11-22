@@ -1,7 +1,9 @@
 """Exercise the HTTP service against disposable data directories."""
 
 import argparse
+import base64
 from contextlib import contextmanager
+import hashlib
 import json
 from pathlib import Path
 import selectors
@@ -23,13 +25,13 @@ SCHEMA = {
 }
 
 
-def command(binary, data):
-    return [str(binary), "-listen", "127.0.0.1:0", "-data", str(data)]
+def command(binary, data, *extra):
+    return [str(binary), "-listen", "127.0.0.1:0", "-data", str(data), *extra]
 
 
 @contextmanager
-def serve(binary, data):
-    proc = subprocess.Popen(command(binary, data), stdout=subprocess.PIPE, text=True)
+def serve(binary, data, *extra):
+    proc = subprocess.Popen(command(binary, data, *extra), stdout=subprocess.PIPE, text=True)
     try:
         with selectors.DefaultSelector() as monitor:
             monitor.register(proc.stdout, selectors.EVENT_READ)
@@ -247,9 +249,79 @@ def expect_restart(binary, data):
         q = {"kind": "strut", "property": "tag", "value": "mid"}
         assert request(base, GRAPH + "/lookup", "POST", q)["result"]["ids"] == ["keel"]
         request(base, GRAPH + "/catalog?view=" + pin, status=404, code="not_found")
+        assert request(base, "/rill/v1/recovery")["mode"] == "strict"
     (data / "abutment.rill").write_text('{"format":', encoding="ascii")
     blocked_start(binary, data, 'recover graph "abutment"')
     return "directory held exclusively; durable head and index recovered; corruption fails startup"
+
+
+def block(name):
+    return {"name": name, "schema": {"vertices": {"pad": {}}, "arcs": {}}}
+
+
+def make_head(base, name):
+    request(base, GRAPHS, "POST", block(name), 201)
+
+
+def write_image(path, name, schema, vertices):
+    """Write a head file directly so recovery sees a specific kind of damage."""
+    graph = {"name": name, "revision": 1, "schema": schema,
+             "vertices": vertices, "arcs": {}}
+    payload = json.dumps(graph, separators=(",", ":")).encode()
+    envelope = {"format": 1, "sha256": hashlib.sha256(payload).hexdigest(),
+                "payload": base64.b64encode(payload).decode()}
+    path.write_text(json.dumps(envelope), encoding="ascii")
+
+
+def expect_quarantine(binary, data):
+    with serve(binary, data) as base:
+        for name in ("solid", "broken", "ruleless", "foreign", "clash"):
+            make_head(base, name)
+    assert (data / "solid.rill").exists()
+
+    (data / "broken.rill").write_text('{"format":', encoding="ascii")
+    ruleless = {"vertices": {"pad": {}}, "arcs": {"link": {"from": "pad", "to": "ghost"}}}
+    write_image(data / "ruleless.rill", "ruleless", ruleless, {})
+    write_image(data / "foreign.rill", "elsewhere",
+                {"vertices": {"pad": {}}, "arcs": {}}, {})
+    # The file called clash.rill is valid, but says it is graph solid.
+    write_image(data / "clash.rill", "solid", {"vertices": {"pad": {}}, "arcs": {}},
+                {"pad": {"id": "pad", "kind": "pad"}})
+
+    blocked_start(binary, data, 'recover graph "broken"')
+
+    with serve(binary, data, "-recover-quarantine") as base:
+        report = request(base, "/rill/v1/recovery")
+        assert report["mode"] == "quarantine" and report["recovered"] == 1, report
+        assert sorted(row["name"] for row in report["quarantined"]) == [
+            "broken", "clash", "foreign", "ruleless"]
+        reasons = {row["name"]: row["reason"] for row in report["quarantined"]}
+        assert "unexpected EOF" in reasons["broken"]
+        foreign = next(row for row in report["quarantined"] if row["name"] == "foreign")
+        assert foreign["claimed"] == "elsewhere"
+        assert "does not match image name" in foreign["reason"]
+        clash = next(row for row in report["quarantined"] if row["name"] == "clash")
+        assert clash["claimed"] == "solid"
+        assert "unknown target kind" in reasons["ruleless"]
+        # The name its own valid file proves keeps working.
+        assert request(base, GRAPHS + "/solid/catalog")["revision"] == 1
+        for name in ("broken", "ruleless", "foreign"):
+            request(base, GRAPHS + "/" + name + "/catalog", status=409, code="conflict")
+            request(base, GRAPHS, "POST", block(name), 409, "conflict")
+        # A name only claimed by a mismatched file must not be installed over it.
+        request(base, GRAPHS, "POST", block("elsewhere"), 409, "conflict")
+        request(base, GRAPHS, "POST", block("spare"), 201)
+    for name in ("broken", "ruleless", "foreign", "clash"):
+        assert (data / (name + ".rill")).exists(), name
+    with serve(binary, data, "-recover-quarantine") as base:
+        report = request(base, "/rill/v1/recovery")
+        assert report["recovered"] == 2 and len(report["quarantined"]) == 4, report
+        request(base, GRAPHS + "/spare/catalog")
+        request(base, GRAPHS, "POST", block("spare"), 409, "conflict")
+        assert (data / "clash.rill").exists()
+    blocked_start(binary, data, 'recover graph "broken"')
+    return ("strict startup still refuses a bad head; explicit quarantine serves only "
+            "fully checked names, reports reasons, and never rewrites the damaged files")
 
 
 WORKFLOWS = {
@@ -257,6 +329,7 @@ WORKFLOWS = {
     "lookup": expect_lookup, "adjacency": expect_adjacency, "reach": expect_reach,
     "path": expect_path, "components": expect_components, "pin": expect_pin,
     "compare": expect_compare, "backup": expect_backup, "restart": expect_restart,
+    "quarantine": expect_quarantine,
 }
 
 
@@ -270,8 +343,8 @@ def main():
         subprocess.run(["go", "build", "-o", binary, "./cmd/rillweaved"], cwd=ROOT, check=True, timeout=90)
         for name in WORKFLOWS if choice == "all" else [choice]:
             data = tmp / name
-            if name == "restart":
-                output = expect_restart(binary, data)
+            if name in ("restart", "quarantine"):
+                output = WORKFLOWS[name](binary, data)
             else:
                 with serve(binary, data) as base:
                     seed(base)

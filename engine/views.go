@@ -16,6 +16,9 @@ func (db *Database) resolve(name, handle string) (*state, error) {
 	if head := db.heads[name]; head != nil {
 		return head, nil
 	}
+	if reason, blocked := db.blocked[name]; blocked {
+		return nil, graph.Fail(graph.Conflict, "graph %q is quarantined: %s", name, reason)
+	}
 	return nil, graph.Fail(graph.Missing, "graph %q not found", name)
 }
 

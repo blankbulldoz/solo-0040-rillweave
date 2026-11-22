@@ -55,6 +55,8 @@ func (db *Database) mayInstall(name string) error {
 		return graph.Fail(graph.Invalid, "invalid graph name")
 	case db.heads[name] != nil:
 		return graph.Fail(graph.Conflict, "graph %q already exists", name)
+	case db.blocked[name] != "":
+		return graph.Fail(graph.Conflict, "graph %q is quarantined: %s", name, db.blocked[name])
 	case len(db.heads) == MaxGraphs:
 		return graph.Fail(graph.Budget, "graph namespace limit reached")
 	}

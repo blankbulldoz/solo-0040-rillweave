@@ -37,7 +37,9 @@ candidate to validated to published or rejected. A graph revision can move
 from head to detached; explicitly held references remain usable. A handle
 moves from held to released (or disappears on restart). An image moves from
 encoded to verified to installed; malformed images never become a graph.
-Secondary indexes are rebuilt from the accepted immutable state.
+Secondary indexes are rebuilt from the accepted immutable state. An installed
+head file found unusable at startup becomes quarantined only under the explicit
+recovery mode; strict startup never creates that state.
 
 Publishing a head writes and synchronizes a temporary image, replaces the
 node's durable graph file and synchronizes the directory. A failure after the
@@ -60,6 +62,7 @@ until restart. The instance must own its data directory exclusively.
 | compare | Compare two views of the same graph by entity identity and schema change | A foreign handle cannot participate |
 | backup | Export one selected revision and import it under an unused name | Malformed images and occupied names do not overwrite existing state |
 | restart | Reopen durable graphs and reconstruct indexes | Full corruption fails startup; ephemeral view handles are not recovered |
+| quarantine | Start explicitly with `-recover-quarantine` after a damaged head file | Every unusable file is isolated by name with its reason; strict startup is unchanged |
 
 The graph, revision, traversal constraints and work budget are visible through
 the protocol documented in README. Validate by building and running each

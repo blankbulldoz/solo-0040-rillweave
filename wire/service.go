@@ -21,6 +21,7 @@ func New(db *engine.Database) http.Handler {
 	mux := http.NewServeMux()
 	s := service{db}
 	mux.HandleFunc("GET /ready", s.ready)
+	mux.HandleFunc("GET /rill/v1/recovery", s.recovery)
 	mux.HandleFunc("POST /rill/v1/graphs", s.create)
 	mux.HandleFunc("GET /rill/v1/graphs/{name}/catalog", s.catalog)
 	mux.HandleFunc("POST /rill/v1/graphs/{name}/commit", s.commit)
@@ -92,4 +93,8 @@ func (s service) ready(w http.ResponseWriter, r *http.Request) {
 	result(w, struct {
 		Status string `json:"status"`
 	}{"ready"}, s.db.Ready(), http.StatusOK)
+}
+
+func (s service) recovery(w http.ResponseWriter, r *http.Request) {
+	result(w, s.db.Report(), nil, http.StatusOK)
 }
