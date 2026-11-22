@@ -12,10 +12,10 @@ and `spar` in the examples are synthetic.
 | Package | Responsibility |
 | --- | --- |
 | graph | Typed scalar values, identifiers, vertex and arc documents |
-| catalog | Rule definitions, endpoint compatibility and final-state uniqueness |
+| catalog | Rule definitions, endpoint compatibility and final-state uniqueness, including composite key plans |
 | change | Private staged edit application and logical difference |
 | index | Deterministic adjacency and typed vertex postings |
-| walk | Graph query semantics, expansion budgets and witnesses |
+| walk | Graph query semantics, composite-key relations, budgets and witnesses |
 | image | Portable versioned encoding, size limit and integrity |
 | disk | Exclusive writer ownership and durable file replacement |
 | view | Bounded handles to immutable read states |
@@ -56,6 +56,7 @@ until restart. The instance must own its data directory exclusively.
 | reach | Return minimum hop distances, including the selected root | Insufficient expansion budget returns an error, never a complete-looking prefix |
 | path | Return least total cost within the hop limit and the witnessing arcs | No route within the chosen subgraph is distinct from budget exhaustion |
 | components | Return strongly connected components and directed links between groups | Weak connectivity and parallel arcs do not merge or multiply component links |
+| join | Relate two kinds by a composite typed key, with exact group sizes | A side missing a key component, mismatched component kinds or a prefix look-alike does not join |
 | pin | Hold and query a fixed revision, then release it | A handle from another graph, an exhausted quota or a released handle is rejected |
 | compare | Compare two views of the same graph by entity identity and schema change | A foreign handle cannot participate |
 | backup | Export one selected revision and import it under an unused name | Malformed images and occupied names do not overwrite existing state |

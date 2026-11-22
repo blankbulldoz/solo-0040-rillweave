@@ -39,6 +39,7 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | POST | `G/reach` | `root`, `max_hops`, optional selection; vertices with minimum hops |
 | POST | `G/path` | `from`, `to`, `max_hops`, optional selection; cheapest bounded path |
 | POST | `G/components` | Optional `kinds`, `budget`; strongly connected groups and directed links |
+| POST | `G/join` | Two typed composite keys; relation groups, exact sizes and paged evidence |
 | POST | `G/pins` | Holds current state; returns a handle and its revision |
 | DELETE | `G/pins/{handle}` | Releases handle; in-flight reads already resolved may finish |
 | POST | `G/compare` | `from` and `to` handles (empty means head); identity-based difference |
@@ -88,6 +89,39 @@ adjacency defaults to 100, capped at 1000. It limits returned rows, not
 matching count or budget charge. A valid no-route result is `found:false`;
 that is different from a missing endpoint or a query that ran out of budget.
 
+### Composite-key join
+
+`join` relates two vertex kinds by a tuple of properties instead of arcs. Its
+`left` and `right` sides each name a `kind` and an ordered `properties` list.
+The two sides may use different property names, but position `i` on each side
+must declare the same scalar kind; a mismatch, a repeated property, unequal
+lengths or an undeclared property rejects the whole request. A vertex joins
+only when every key property is present with exactly the declared kind, so an
+absent value never equals `0`, `false` or `""`, and text matches exactly with
+no prefix or length tolerance.
+
+The result lists only keys present on both sides. `groups` carries each listed
+`key` tuple with exact `left_count`, `right_count` and `pairs`; `ambiguous` is
+true only when both sides have more than one member for the key. Totals such as
+`matched_groups`, `pairs`, `ambiguous_groups`, per-side `keyed`/`excluded` and
+`left_only_keys`/`right_only_keys` count the whole relation, not just the page.
+`limit` and `offset` page groups (default 100, up to 1000); `pairs` stays the
+full product.
+
+`evidence_limit` and `evidence_offset` return one window of the pair list in a
+single stable order: key tuple, then left ID, then right ID. The window is
+computed arithmetically, so a hot key with a large cross-product never builds
+its full pairing. `evidence_total` is the whole pair count and `evidence_next`
+is the offset to continue from; a window that reaches the end reports
+`evidence_next == evidence_total`. `scanned` counts vertex keys examined on
+both sides, not produced pairs.
+
+```sh
+curl -fsS http://127.0.0.1:8174/rill/v1/graphs/loom/join \
+  -H 'Content-Type: application/json' \
+  -d '{"left":{"kind":"sheet","properties":["mill","lot"]},"right":{"kind":"roll","properties":["plant","batch"]},"evidence_limit":10}'
+```
+
 ### Storage and Verification
 
 A namespace has at most 10000 vertices, 40000 arcs and a 12 MiB image payload;
@@ -109,5 +143,6 @@ python3 examples/walkthrough.py --workflow all
 The Python 3 walkthrough starts temporary server processes with bounded
 synthetic inputs and prints success and rejection evidence. Use
 `--workflow catalog`, `commit`, `vertex`, `lookup`, `adjacency`, `reach`,
-`path`, `components`, `pin`, `compare`, `backup` or `restart` to select one.
+`path`, `components`, `join`, `pin`, `compare`, `backup` or `restart` to select
+one.
 Formal tests are deferred; no test runner is required.

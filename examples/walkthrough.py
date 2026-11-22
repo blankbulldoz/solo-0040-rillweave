@@ -197,6 +197,75 @@ def expect_components(base):
     return "selected kind changes strong connectivity; directed quotient link verified"
 
 
+LOOM_SCHEMA = {
+    "vertices": {
+        "sheet": {"properties": {"mill": {"kind": "text"}, "lot": {"kind": "int"},
+                                 "dye": {"kind": "bool"}}},
+        "roll": {"properties": {"plant": {"kind": "text"}, "batch": {"kind": "int"},
+                                "tinted": {"kind": "bool"}}},
+        "spool": {"properties": {"plant": {"kind": "text"}, "batch": {"kind": "text"}}},
+    },
+    "arcs": {},
+}
+
+
+def commit_to(base, graph, revision, edits):
+    return request(base, graph + "/commit", "POST", {"base": revision, "edits": edits})
+
+
+def expect_join(base):
+    graph = GRAPHS + "/loom"
+    request(base, GRAPHS, "POST", {"name": "loom", "schema": LOOM_SCHEMA}, 201)
+    edits = []
+    sheets = [("s1", "north", 7, True), ("s2", "north", 7, True),
+              ("s3", "north", 7, True), ("s4", "north2", 7, True),
+              ("s5", "south", 8, False), ("s6", "south", 8, False),
+              ("s7", "west", 1, False)]
+    for sid, mill, lot, dye in sheets:
+        edits.append({"op": "put_vertex", "vertex": {
+            "id": sid, "kind": "sheet", "properties": {"mill": mill, "lot": lot, "dye": dye}}})
+    # Missing lot: the sheet has no key and must not join as if lot were zero.
+    edits.append({"op": "put_vertex", "vertex": {"id": "s8", "kind": "sheet",
+                                                 "properties": {"mill": "north", "dye": True}}})
+    rolls = [("r1", "north", 7, True), ("r2", "north", 7, True),
+             ("r3", "north2", 7, True), ("r4", "south", 8, False)]
+    for rid, plant, batch, tinted in rolls:
+        edits.append({"op": "put_vertex", "vertex": {
+            "id": rid, "kind": "roll",
+            "properties": {"plant": plant, "batch": batch, "tinted": tinted}}})
+    commit_to(base, graph, 1, edits)
+
+    plan = {"left": {"kind": "sheet", "properties": ["mill", "lot", "dye"]},
+            "right": {"kind": "roll", "properties": ["plant", "batch", "tinted"]}}
+    path = graph + "/join"
+    value = request(base, path, "POST", plan)["result"]
+    assert value["plan"]["types"] == ["text", "int", "bool"]
+    assert value["matched_groups"] == 3 and value["pairs"] == 3 * 2 + 1 + 2, value
+    assert value["groups"] == [
+        {"key": ["north", 7, True], "left_count": 3, "right_count": 2, "pairs": 6,
+         "ambiguous": True},
+        {"key": ["north2", 7, True], "left_count": 1, "right_count": 1, "pairs": 1,
+         "ambiguous": False},
+        {"key": ["south", 8, False], "left_count": 2, "right_count": 1, "pairs": 2,
+         "ambiguous": False},
+    ], value["groups"]
+    assert value["left_excluded"] == 1 and value["right_excluded"] == 0
+    assert value["ambiguous_groups"] == 1
+    assert value["left_only_keys"] == 1 and value["right_only_keys"] == 0
+
+    window = request(base, path, "POST", {**plan, "evidence_offset": 3, "evidence_limit": 2})["result"]
+    assert window["evidence"] == [
+        {"key": ["north", 7, True], "left": "s2", "right": "r2"},
+        {"key": ["north", 7, True], "left": "s3", "right": "r1"},
+    ], window["evidence"]
+    assert window["evidence_next"] == 5 and window["evidence_total"] == 9
+
+    request(base, path, "POST", {"left": {"kind": "sheet", "properties": ["mill", "lot"]},
+                                 "right": {"kind": "spool", "properties": ["plant", "batch"]}},
+            400, "invalid")
+    return "composite typed keys join; exact sizes, ambiguity and paged evidence verified"
+
+
 def expect_pin(base):
     pin = hold(base)
     query = "?view=" + pin
@@ -255,7 +324,8 @@ def expect_restart(binary, data):
 WORKFLOWS = {
     "catalog": expect_catalog, "commit": expect_commit, "vertex": expect_vertex,
     "lookup": expect_lookup, "adjacency": expect_adjacency, "reach": expect_reach,
-    "path": expect_path, "components": expect_components, "pin": expect_pin,
+    "path": expect_path, "components": expect_components, "join": expect_join,
+    "pin": expect_pin,
     "compare": expect_compare, "backup": expect_backup, "restart": expect_restart,
 }
 
