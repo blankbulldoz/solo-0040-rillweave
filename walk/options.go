@@ -31,14 +31,15 @@ func topologyFor(g *graph.Graph, a *index.Adjacency, s Selection) (*topology, er
 	if s.Direction != index.Out && s.Direction != index.In && s.Direction != index.Both {
 		return nil, graph.Fail(graph.Invalid, "direction must be out, in or both")
 	}
-	if s.Budget == 0 {
-		s.Budget = MaxBudget
+	allowance, err := BudgetLimit(s.Budget)
+	if err != nil {
+		return nil, err
 	}
-	if s.Budget < 1 || s.Budget > MaxBudget || len(s.Kinds) > graph.MaxRules {
-		return nil, graph.Fail(graph.Invalid, "invalid expansion budget or arc-kind count")
+	if len(s.Kinds) > graph.MaxRules {
+		return nil, graph.Fail(graph.Invalid, "invalid arc-kind count")
 	}
 	t := &topology{
-		adj: a, direction: s.Direction, allowance: s.Budget,
+		adj: a, direction: s.Direction, allowance: allowance,
 		kinds: make(map[string]bool, len(s.Kinds)),
 	}
 	for _, kind := range s.Kinds {
@@ -48,6 +49,19 @@ func topologyFor(g *graph.Graph, a *index.Adjacency, s Selection) (*topology, er
 		t.kinds[kind] = true
 	}
 	return t, nil
+}
+
+// BudgetLimit normalizes a per-request candidate-arc allowance. Zero or
+// omitted means the standard MaxBudget; each search segment supplies its own
+// allowance and is validated through the same rule.
+func BudgetLimit(request int) (int, error) {
+	if request == 0 {
+		return MaxBudget, nil
+	}
+	if request < 1 || request > MaxBudget {
+		return 0, graph.Fail(graph.Invalid, "expansion budget must be in [1,%d]", MaxBudget)
+	}
+	return request, nil
 }
 
 func (t *topology) visit(from string, d index.Direction, use func(graph.Arc, string) error) error {

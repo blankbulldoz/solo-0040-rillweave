@@ -38,6 +38,7 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | POST | `G/adjacency` | `vertex`, optional selection and `limit`; matching arcs by ID |
 | POST | `G/reach` | `root`, `max_hops`, optional selection; vertices with minimum hops |
 | POST | `G/path` | `from`, `to`, `max_hops`, optional selection; cheapest bounded path |
+| DELETE | `G/path-sessions/{session}` | Releases a paused path search |
 | POST | `G/components` | Optional `kinds`, `budget`; strongly connected groups and directed links |
 | POST | `G/pins` | Holds current state; returns a handle and its revision |
 | DELETE | `G/pins/{handle}` | Releases handle; in-flight reads already resolved may finish |
@@ -88,12 +89,44 @@ adjacency defaults to 100, capped at 1000. It limits returned rows, not
 matching count or budget charge. A valid no-route result is `found:false`;
 that is different from a missing endpoint or a query that ran out of budget.
 
+### Resumable path sessions
+
+A `path` request runs one search segment whose `budget` is a hard cap on the
+candidate arcs inspected during that segment. When the cap is spent before the
+search reaches its endgame, the response carries `complete:false` and a
+`session` handle instead of an error: every prefix candidate discovered so far
+is retained server side, so the search continues rather than restarting. Send
+the same body again with `session` added; each continuation may carry its own
+segment `budget`. The continuation must repeat the original `from`, `to`,
+`max_hops`, `direction` and `kinds`, otherwise the request is rejected with
+409. A request that also names `?view=` must select the same immutable view the
+session was opened on. Sessions pin that view, so later commits never
+invalidate stored candidates; the response `revision` identifies the revision
+the search is running against.
+
+While a search is open, `found:true` plus `upper_bound` may report the
+cheapest witness known so far. That bound is provisional: `complete:false`
+means a cheaper route, or an equal-cost route preferred by the tie rules, can
+still appear. A response is terminal (`complete:true`) only once every layer up
+to `max_hops` is exhausted, no frontier remains, or strictly positive arc costs
+prove that every surviving prefix is already more expensive than the
+incumbent. Terminal responses return no session and close the handle; a
+paused session can also be closed explicitly with
+`DELETE G/path-sessions/{session}`, after which its token never resolves and
+cannot be mixed with a different search. Sessions are graph scoped, in-memory
+only (a restart drops them, like pins) and capped at 16 per process. The
+per-session state is bounded to the cheapest stable prefix per vertex at each
+depth, at most twice the graph's vertex limit in total labels. The same
+segment rules apply to a first call and every continuation, so a search never
+loses work to budget exhaustion and a paused response is never mistaken for a
+terminal answer.
+
 ### Storage and Verification
 
 A namespace has at most 10000 vertices, 40000 arcs and a 12 MiB image payload;
-a commit has at most 2000 edits. At most 32 namespaces and 16 simultaneous
-pins exist per process; pins are not durable, and two pins can hold the same
-revision. Use a successful image export for an offline representation of a
+a commit has at most 2000 edits. At most 32 namespaces, 16 simultaneous
+pins and 16 paused path sessions exist per process; pins and path sessions are
+not durable, and two pins can hold the same revision. Use a successful image export for an offline representation of a
 pinned revision. Export does not freeze ongoing writes. In a restore, the
 local graph identity and revision are new; the original graph remains intact.
 Copying an existing `.rill` file into a fresh data directory instead reopens

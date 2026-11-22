@@ -174,14 +174,77 @@ def expect_path(base):
     q = {"from": "hinge", "to": "tip", "max_hops": 2, "kinds": ["join"]}
     path = GRAPH + "/path"
     bounded = request(base, path, "POST", q)["result"]
+    assert bounded["complete"] and bounded["found"]
     assert bounded["cost"] == 9 and bounded["arcs"] == ["brace", "stem"]
+    assert bounded["upper_bound"] == 9 and "session" not in bounded
     longer = request(base, path, "POST", {**q, "max_hops": 3})["result"]
-    assert longer["cost"] == 3 and longer["arcs"] == ["bypass", "cross", "stem"]
+    assert longer["complete"] and longer["cost"] == 3
+    assert longer["arcs"] == ["bypass", "cross", "stem"]
     reverse = request(base, path, "POST", {**q, "from": "tip", "to": "hinge", "direction": "in"})
     assert reverse["result"]["vertices"] == ["tip", "spar", "hinge"]
-    assert not request(base, path, "POST", {**q, "max_hops": 1})["result"]["found"]
+    assert reverse["result"]["complete"]
+    missing = request(base, path, "POST", {**q, "max_hops": 1})["result"]
+    assert missing["complete"] and not missing["found"] and "upper_bound" not in missing
+
+    # A spent segment pauses the search instead of discarding it. Candidate
+    # inspections are charged per segment with a hard cap and never recharged
+    # when a session resumes.
+    first = request(base, path, "POST", {**q, "budget": 1})["result"]
+    assert not first["complete"] and not first["found"] and first["scanned"] == 1
+    session = first["session"]
+    assert "upper_bound" not in first
+    for changed in (
+        {**q, "max_hops": 3}, {**q, "kinds": ["guide"]}, {**q, "direction": "in"},
+        {**q, "from": "keel"}, {**q, "to": "keel"},
+    ):
+        request(base, path, "POST", {**changed, "budget": 1, "session": session}, 409, "conflict")
+    request(base, path, "POST", {**q, "session": "0" * 32}, 404, "not_found")
+
+    second = request(base, path, "POST", {**q, "budget": 6, "session": session})["result"]
+    assert not second["complete"] and second["session"] == session
+    assert not second["found"] and second["scanned"] == 7
+    third = request(base, path, "POST", {**q, "budget": 3, "session": session})["result"]
+    assert not third["complete"] and third["session"] == session
+    assert not third["found"] and third["scanned"] == 10
+
+    # A published commit cannot invalidate candidates held by the old session.
+    commit(base, 2, [put_vertex("wing", "west")])
+    assert request(base, GRAPH + "/catalog")["revision"] == 3
+    pin = hold(base)
+    request(base, path + "?view=" + pin, "POST", {**q, "budget": 1, "session": session}, 409, "conflict")
+    fourth = request(base, path, "POST", {**q, "budget": 1, "session": session})
+    assert fourth["revision"] == 2 and fourth["result"]["complete"]
+    assert fourth["result"]["cost"] == 9 and fourth["result"]["arcs"] == ["brace", "stem"]
+    # Segment inspections sum to the one-shot total: no arc is recharged on resume.
+    assert fourth["result"]["scanned"] == bounded["scanned"] == 11
+    request(base, path, "POST", {**q, "session": session}, 404, "not_found")
+
+    # While a longer search is still open it may expose a provisory upper bound;
+    # the cheaper three-hop witness is only reported once that route is proven.
+    open_query = {**q, "max_hops": 3}
+    started = request(base, path, "POST", {**open_query, "budget": 11})["result"]
+    assert not started["complete"] and started["found"] and started["upper_bound"] == 9
+    open_session = started["session"]
+    request(base, path, "POST", {**open_query, "max_hops": 2, "session": open_session}, 409, "conflict")
+    finished = request(base, path, "POST", {**open_query, "budget": 7, "session": open_session})["result"]
+    assert finished["complete"] and finished["cost"] == 3 and finished["upper_bound"] == 3
+    assert finished["arcs"] == ["bypass", "cross", "stem"] and finished["scanned"] == 18
+
+    # Sessions are graph-scoped, explicitly releasable and capacity bounded.
+    request(base, GRAPHS, "POST", {"name": "pier", "schema": SCHEMA}, 201)
+    parked = request(base, path, "POST", {**q, "budget": 1})["result"]["session"]
+    request(base, GRAPHS + "/pier/path", "POST", {**q, "session": parked}, 404, "not_found")
+    tokens = [parked]
+    for _ in range(15):
+        tokens.append(request(base, path, "POST", {**q, "budget": 1})["result"]["session"])
     request(base, path, "POST", {**q, "budget": 1}, 422, "budget_exhausted")
-    return "hop-sensitive prefixes, parallel ties, reverse witness and budget verified"
+    request(base, GRAPH + "/path-sessions/" + parked, "DELETE", None, 204)
+    request(base, GRAPH + "/path-sessions/" + parked, "DELETE", None, 404, "not_found")
+    request(base, path, "POST", {**q, "session": parked}, 404, "not_found")
+    replacement = request(base, path, "POST", {**q, "budget": 1})["result"]["session"]
+    for token in tokens[1:] + [replacement]:
+        request(base, GRAPH + "/path-sessions/" + token, "DELETE", None, 204)
+    return "paused segments resume without rework; upper bound, agreement, pinned views and session limits verified"
 
 
 def expect_components(base):

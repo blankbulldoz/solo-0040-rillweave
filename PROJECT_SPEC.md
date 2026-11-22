@@ -15,7 +15,7 @@ and `spar` in the examples are synthetic.
 | catalog | Rule definitions, endpoint compatibility and final-state uniqueness |
 | change | Private staged edit application and logical difference |
 | index | Deterministic adjacency and typed vertex postings |
-| walk | Graph query semantics, expansion budgets and witnesses |
+| walk | Graph query semantics, expansion budgets, resumable path sessions and witnesses |
 | image | Portable versioned encoding, size limit and integrity |
 | disk | Exclusive writer ownership and durable file replacement |
 | view | Bounded handles to immutable read states |
@@ -39,6 +39,16 @@ moves from held to released (or disappears on restart). An image moves from
 encoded to verified to installed; malformed images never become a graph.
 Secondary indexes are rebuilt from the accepted immutable state.
 
+A path search moves from running to paused with a graph-scoped session and
+back to running on each agreeing continuation, then to terminal; an explicit
+release or a process restart ends it. A paused search pins one immutable view:
+continuations must repeat the original endpoints, direction, arc kinds and hop
+limit, and an explicitly selected view must name that same state. Each segment
+has a hard candidate-inspection cap; a paused result may expose an upper bound
+but is never terminal while a cheaper route or a preferred equal-cost route
+can still exist. Releasing a session invalidates its token, so a closed search
+can never be mixed with a different path.
+
 Publishing a head writes and synchronizes a temporary image, replaces the
 node's durable graph file and synchronizes the directory. A failure after the
 rename but before confirmed durability makes further graph operations fail
@@ -54,7 +64,7 @@ until restart. The instance must own its data directory exclusively.
 | lookup | Resolve typed equality via a vertex posting | Missing properties do not match a present value; wrong types are rejected |
 | adjacency | List directed arc identities and endpoints | Both directions include a self-loop once; mismatched kinds do not pass |
 | reach | Return minimum hop distances, including the selected root | Insufficient expansion budget returns an error, never a complete-looking prefix |
-| path | Return least total cost within the hop limit and the witnessing arcs | No route within the chosen subgraph is distinct from budget exhaustion |
+| path | Run bounded path segments that resume on a session, returning the least total cost within the hop limit and its witnessing arcs | Exhausted segments pause with a retained upper bound rather than restarting; no route within the chosen subgraph is distinct from budget exhaustion and from an unfinished search |
 | components | Return strongly connected components and directed links between groups | Weak connectivity and parallel arcs do not merge or multiply component links |
 | pin | Hold and query a fixed revision, then release it | A handle from another graph, an exhausted quota or a released handle is rejected |
 | compare | Compare two views of the same graph by entity identity and schema change | A foreign handle cannot participate |

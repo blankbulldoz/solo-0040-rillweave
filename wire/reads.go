@@ -1,6 +1,10 @@
 package wire
 
-import "net/http"
+import (
+	"net/http"
+
+	"rillweave/walk"
+)
 
 func reading[Q, R any](read func(string, string, Q) (R, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -12,6 +16,27 @@ func reading[Q, R any](read func(string, string, Q) (R, error)) http.HandlerFunc
 		value, err := read(r.PathValue("name"), selected(r), q)
 		result(w, value, err, http.StatusOK)
 	}
+}
+
+// pathRequest carries the optional session token that resumes a paused search.
+type pathRequest struct {
+	walk.PathRequest
+	Session string `json:"session,omitempty"`
+}
+
+func (s service) path(w http.ResponseWriter, r *http.Request) {
+	var q pathRequest
+	if err := decode(w, r, &q, maxRequest); err != nil {
+		result(w, nil, err, 0)
+		return
+	}
+	value, err := s.db.Path(r.PathValue("name"), selected(r), q.PathRequest, q.Session)
+	result(w, value, err, http.StatusOK)
+}
+
+func (s service) releasePath(w http.ResponseWriter, r *http.Request) {
+	err := s.db.ReleasePath(r.PathValue("name"), r.PathValue("session"))
+	result(w, nil, err, http.StatusNoContent)
 }
 
 func (s service) catalog(w http.ResponseWriter, r *http.Request) {

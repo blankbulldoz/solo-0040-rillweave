@@ -15,15 +15,22 @@ type held[T any] struct {
 }
 
 type Handles[T any] struct {
-	live map[string]held[T]
+	limit int
+	live  map[string]held[T]
 }
 
 func New[T any]() Handles[T] {
-	return Handles[T]{live: make(map[string]held[T])}
+	return NewBounded[T](MaxHandles)
+}
+
+// NewBounded builds a handle registry with an explicit capacity. The handle
+// token space stays random and graph-scoped regardless of the limit.
+func NewBounded[T any](limit int) Handles[T] {
+	return Handles[T]{limit: limit, live: make(map[string]held[T])}
 }
 
 func (h Handles[T]) Hold(name string, value T) (string, error) {
-	if len(h.live) == MaxHandles {
+	if len(h.live) == h.limit {
 		return "", graph.Fail(graph.Budget, "view handle limit reached")
 	}
 	for {
