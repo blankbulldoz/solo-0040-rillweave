@@ -37,7 +37,7 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | POST | `G/lookup` | `kind`, `property`, `value`, optional `limit`; IDs and exact count |
 | POST | `G/adjacency` | `vertex`, optional selection and `limit`; matching arcs by ID |
 | POST | `G/reach` | `root`, `max_hops`, optional selection; vertices with minimum hops |
-| POST | `G/path` | `from`, `to`, `max_hops`, optional selection; cheapest bounded path |
+| POST | `G/path` | `from`, `to`, `max_hops`, optional selection and route policy; cheapest bounded path |
 | POST | `G/components` | Optional `kinds`, `budget`; strongly connected groups and directed links |
 | POST | `G/pins` | Holds current state; returns a handle and its revision |
 | DELETE | `G/pins/{handle}` | Releases handle; in-flight reads already resolved may finish |
@@ -87,6 +87,26 @@ uses 300000; exhaustion rejects the whole query. `limit` for lookup and
 adjacency defaults to 100, capped at 1000. It limits returned rows, not
 matching count or budget charge. A valid no-route result is `found:false`;
 that is different from a missing endpoint or a query that ran out of budget.
+
+Path requests accept two optional route policies on top of the selection.
+`blocked_relay_kinds` lists vertex kinds that may not be entered as an
+intermediate relay. The check applies only to entered vertices, so `from` and
+`to` remain legal endpoints even when their kinds are listed; an arc into a
+blocked non-destination vertex is skipped after it is scanned.
+`property_limits` is a list of `{"property", "value", "max"}` entries. Each
+entry bounds how many vertices on the whole route, including both endpoints,
+carry that property with that exact typed value. A vertex missing the
+property does not spend the limit, and a present value of a different kind
+or value does not match either; an explicit boolean `false` is therefore
+distinct from an absent property. `max` is in `[0, max_hops+1]`; at most 32
+limits and 64 blocked kinds are allowed, and unknown kinds, undeclared
+properties, mismatched scalar types or duplicate limits are rejected.
+Search keeps a separate label per `(vertex, spent-count)` combination and
+prunes only labels dominated at the same vertex, so two prefixes reaching one
+vertex in the same number of steps with different spent counts both survive
+while they can still complete the route. Ties keep the existing arc-sequence
+ordering and the query runs against the selected fixed view under the same
+work budget.
 
 ### Storage and Verification
 

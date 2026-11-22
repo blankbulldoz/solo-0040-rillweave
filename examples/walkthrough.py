@@ -15,10 +15,16 @@ ROOT = Path(__file__).resolve().parents[1]
 GRAPHS = "/rill/v1/graphs"
 GRAPH = GRAPHS + "/abutment"
 SCHEMA = {
-    "vertices": {"strut": {"properties": {"tag": {"kind": "text", "unique": True}}}},
+    "vertices": {
+        "strut": {"properties": {"tag": {"kind": "text", "unique": True}}},
+        "joint": {"properties": {"open": {"kind": "bool"}}},
+    },
     "arcs": {
         "join": {"from": "strut", "to": "strut"},
         "guide": {"from": "strut", "to": "strut"},
+        "relay": {"from": "strut", "to": "joint"},
+        "bypass": {"from": "joint", "to": "strut"},
+        "joint_link": {"from": "joint", "to": "joint"},
     },
 }
 
@@ -106,12 +112,18 @@ def hold(base, graph=GRAPH):
 
 
 def expect_catalog(base):
-    expanded = {**SCHEMA, "vertices": {"strut": {"properties": {
-        **SCHEMA["vertices"]["strut"]["properties"], "marked": {"kind": "bool"},
-    }}}}
-    required = {**SCHEMA, "vertices": {"strut": {"properties": {
-        "tag": {"kind": "text", "unique": True, "required": True},
-    }}}}
+    expanded = {**SCHEMA, "vertices": {
+        **SCHEMA["vertices"],
+        "strut": {"properties": {
+            **SCHEMA["vertices"]["strut"]["properties"], "marked": {"kind": "bool"},
+        }},
+    }}
+    required = {**SCHEMA, "vertices": {
+        **SCHEMA["vertices"],
+        "strut": {"properties": {
+            "tag": {"kind": "text", "unique": True, "required": True},
+        }},
+    }}
     commit(base, 2, [{"op": "set_schema", "schema": required}], 400, "invalid")
     assert catalog(base)["result"]["schema"] == SCHEMA
     commit(base, 2, [{"op": "set_schema", "schema": expanded}])
@@ -170,6 +182,11 @@ def expect_reach(base):
     return "minimum hop distances returned; exhausted budget emits no partial result"
 
 
+def put_joint(key, opened=None):
+    props = {"open": opened} if opened is not None else {}
+    return {"op": "put_vertex", "vertex": {"id": key, "kind": "joint", "properties": props}}
+
+
 def expect_path(base):
     q = {"from": "hinge", "to": "tip", "max_hops": 2, "kinds": ["join"]}
     path = GRAPH + "/path"
@@ -181,7 +198,86 @@ def expect_path(base):
     assert reverse["result"]["vertices"] == ["tip", "spar", "hinge"]
     assert not request(base, path, "POST", {**q, "max_hops": 1})["result"]["found"]
     request(base, path, "POST", {**q, "budget": 1}, 422, "budget_exhausted")
-    return "hop-sensitive prefixes, parallel ties, reverse witness and budget verified"
+
+    # A disjoint detour network exercises relay blocks and property limits.
+    open_limit = {"property": "open", "value": True, "max": 1}
+    commit(base, 2, [
+        put_joint("jt"), put_joint("gate", True), put_joint("dead", False), put_joint("b"),
+        put_vertex("s"), put_vertex("d"), put_vertex("far"), put_vertex("back"),
+        put_arc("sj", "s", "jt", 5, "relay"), put_arc("sg", "s", "gate", 1, "relay"),
+        put_arc("sd", "s", "dead", 1, "relay"),
+        put_arc("jd", "jt", "d", 1, "bypass"), put_arc("gd", "gate", "d", 1, "bypass"),
+        put_arc("dd", "dead", "d", 1, "bypass"),
+        put_arc("df", "d", "far", 1, "join"), put_arc("fb", "far", "back", 1, "join"),
+        put_arc("bs", "back", "s", 1, "join"),
+        put_arc("jg", "jt", "gate", 1, "joint_link"),
+    ])
+    detour = {"from": "s", "to": "d", "max_hops": 2}
+    # Three two-hop witnesses tie on cost; the lexicographically smallest arc
+    # sequence still wins, independently of the new constraints.
+    plain = request(base, path, "POST", detour)["result"]
+    assert plain["cost"] == 2 and plain["arcs"] == ["sd", "dd"]
+    # Blocking the joint kind removes every two-hop detour, while the blocked
+    # kind remains a legal endpoint when named explicitly as the destination.
+    blocked = request(base, path, "POST", {**detour, "blocked_relay_kinds": ["joint"]})["result"]
+    assert not blocked["found"]
+    endpoint = request(base, path, "POST", {
+        "from": "s", "to": "jt", "max_hops": 1, "blocked_relay_kinds": ["joint"],
+    })["result"]
+    assert endpoint["found"] and endpoint["arcs"] == ["sj"]
+    # Only gate carries open=true; the absent and explicit-false joints do not
+    # spend the limit, so a one-open route still prefers the sd/dd witness.
+    within = request(base, path, "POST", {**detour, "property_limits": [open_limit]})["result"]
+    assert within["arcs"] == ["sd", "dd"]
+    forced = request(base, path, "POST", {
+        **detour, "property_limits": [{"property": "open", "value": True, "max": 0}],
+    })["result"]
+    assert forced["arcs"] == ["sd", "dd"]
+    # Reaching gate at all requires one open vertex, so a zero limit forbids it.
+    assert not request(base, path, "POST", {
+        **detour, "to": "gate", "property_limits": [
+            {"property": "open", "value": True, "max": 0}],
+    })["result"]["found"]
+    # Two prefixes reach b in exactly two hops: the gate branch spends the
+    # open=true limit, the jt branch spends none but costs more. At b they
+    # differ only in spent counts, so neither label may dominate the other.
+    # e is reachable only through b, so the choice at b decides feasibility.
+    commit(base, 3, [
+        put_vertex("e"),
+        put_arc("jb", "jt", "b", 1, "joint_link"),
+        put_arc("gb", "gate", "b", 1, "joint_link"),
+        put_arc("be", "b", "e", 1, "bypass"),
+    ])
+    # A zero-open limit still finds the jt branch; merging labels on vertex
+    # identity alone would have discarded the zero-count prefix at b and
+    # reported no route.
+    retained = request(base, path, "POST", {
+        "from": "s", "to": "e", "max_hops": 3,
+        "property_limits": [{"property": "open", "value": True, "max": 0}],
+    })["result"]
+    assert retained["found"] and retained["arcs"] == ["sj", "jb", "be"] and retained["cost"] == 7
+    # Allowing one open visit prefers the cheaper gate branch, and the limit
+    # accounting is still reflected in the witness.
+    preferred = request(base, path, "POST", {
+        "from": "s", "to": "e", "max_hops": 3, "property_limits": [open_limit],
+    })["result"]
+    assert preferred["arcs"] == ["sg", "gb", "be"] and preferred["cost"] == 3
+    request(base, path, "POST", {**detour, "blocked_relay_kinds": ["unknown"]}, 400, "invalid")
+    request(base, path, "POST", {
+        **detour, "property_limits": [{"property": "open", "value": 1, "max": 1}],
+    }, 400, "invalid")
+    request(base, path, "POST", {
+        **detour, "property_limits": [{"property": "missing", "value": True, "max": 1}],
+    }, 400, "invalid")
+    request(base, path, "POST", {
+        **detour, "property_limits": [
+            {"property": "open", "value": True, "max": 1},
+            {"property": "open", "value": True, "max": 0}],
+    }, 400, "invalid")
+    request(base, path, "POST", {
+        **detour, "property_limits": [{"property": "tag", "value": True, "max": 1}],
+    }, 400, "invalid")
+    return "hop-sensitive prefixes, parallel ties, reverse witness, budget, relay blocks, typed visit limits and spent-count labels verified"
 
 
 def expect_components(base):
