@@ -89,3 +89,15 @@ func (db *Database) Components(name, handle string, q walk.ComponentsRequest) (R
 		return walk.Components(s.graph, s.adj, q)
 	})
 }
+
+func (db *Database) Census(name, handle string, q walk.CensusRequest) (ReadResult[walk.CensusResult], error) {
+	return query(db, name, handle, func(s *state) (walk.CensusResult, error) {
+		return walk.Census(s.graph, s.adj, q)
+	})
+}
+
+func (db *Database) CensusEvidence(name, handle string, q walk.EvidenceRequest) (ReadResult[walk.EvidenceResult], error) {
+	return query(db, name, handle, func(s *state) (walk.EvidenceResult, error) {
+		return walk.Evidence(s.graph, s.adj, q)
+	})
+}

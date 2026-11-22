@@ -39,6 +39,8 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | POST | `G/reach` | `root`, `max_hops`, optional selection; vertices with minimum hops |
 | POST | `G/path` | `from`, `to`, `max_hops`, optional selection; cheapest bounded path |
 | POST | `G/components` | Optional `kinds`, `budget`; strongly connected groups and directed links |
+| POST | `G/census` | Vertex `kind`, optional typed `filters`, `arc_kinds`; in/out degree bucket per cohort member |
+| POST | `G/census/evidence` | The same selection plus a `bucket`; bounded arc witnesses on the chosen view |
 | POST | `G/pins` | Holds current state; returns a handle and its revision |
 | DELETE | `G/pins/{handle}` | Releases handle; in-flight reads already resolved may finish |
 | POST | `G/compare` | `from` and `to` handles (empty means head); identity-based difference |
@@ -88,6 +90,37 @@ adjacency defaults to 100, capped at 1000. It limits returned rows, not
 matching count or budget charge. A valid no-route result is `found:false`;
 that is different from a missing endpoint or a query that ran out of budget.
 
+### Relationship coverage census
+
+`POST G/census` first selects a cohort: every vertex of one `kind` that
+satisfies each optional typed equality `filters` entry. A missing property or
+a different scalar type never matches, and each vertex joins the cohort once,
+so a self-loop cannot count a vertex twice. It then measures, for every cohort
+member, the selected `arc_kinds` incidence and places the vertex in an
+`"inxout"` bucket label built from its in-degree and out-degree. Parallel arcs
+keep their identities and count separately. A self-loop sits on both postings
+and therefore contributes once to each direction while remaining one arc.
+Zero-degree members stay in `rows` at the `0x0` bucket.
+
+By default degrees count arcs. Set `"distinct": true` to count distinct
+neighbouring vertices instead; three parallel arcs to one neighbour then read
+as one distinct neighbour, while three arcs to three collaborators read as
+three. Each row reports both the raw arc degrees and the distinct neighbour
+counts. `buckets` aggregates the same rows into counts; `cohort_size` is the
+population including zero-degree vertices. `scanned` is the number of
+candidate arcs inspected across the in and out postings of every cohort
+member, including arcs rejected by `arc_kinds`. Budget exhaustion rejects the
+whole census with `budget_exhausted`: an unscanned vertex is never reported as
+zero-degree. `limit` bounds only the returned `rows`, never the bucket totals
+or the scan charge.
+
+`POST G/census/evidence` repeats the same cohort and degree computation and
+returns, for members of exactly one `bucket`, the sorted in and out arc IDs
+that place each member there. `matched` is the full member count of the
+bucket; `limit` bounds the returned items and sets `truncated`. Both endpoints
+accept `?view={handle}`, so evidence can be re-read from a pinned revision
+after the head has advanced.
+
 ### Storage and Verification
 
 A namespace has at most 10000 vertices, 40000 arcs and a 12 MiB image payload;
@@ -104,7 +137,13 @@ uninstalled temp files. See [PROJECT_SPEC.md](PROJECT_SPEC.md).
 go build ./...
 go vet ./...
 python3 examples/walkthrough.py --workflow all
+python3 examples/census_oracle.py
 ```
+
+The census oracle is an independent black-box check: it recomputes degrees,
+buckets and the candidate-arc scan charge from the raw seeded arcs in Python
+and compares them with the service responses, including sparse and
+near-total cohorts and the budget contract.
 
 The Python 3 walkthrough starts temporary server processes with bounded
 synthetic inputs and prints success and rejection evidence. Use
