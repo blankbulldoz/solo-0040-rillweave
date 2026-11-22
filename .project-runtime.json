@@ -12,6 +12,7 @@
     {"workflow_id":"adjacency","command":"python3 examples/walkthrough.py --workflow adjacency"},
     {"workflow_id":"reach","command":"python3 examples/walkthrough.py --workflow reach"},
     {"workflow_id":"path","command":"python3 examples/walkthrough.py --workflow path"},
+    {"workflow_id":"matrix","command":"python3 examples/walkthrough.py --workflow matrix"},
     {"workflow_id":"components","command":"python3 examples/walkthrough.py --workflow components"},
     {"workflow_id":"pin","command":"python3 examples/walkthrough.py --workflow pin"},
     {"workflow_id":"compare","command":"python3 examples/walkthrough.py --workflow compare"},

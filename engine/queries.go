@@ -84,6 +84,12 @@ func (db *Database) Path(name, handle string, q walk.PathRequest) (ReadResult[wa
 	})
 }
 
+func (db *Database) Matrix(name, handle string, q walk.MatrixRequest) (ReadResult[walk.MatrixResult], error) {
+	return query(db, name, handle, func(s *state) (walk.MatrixResult, error) {
+		return walk.Matrix(s.graph, s.adj, q)
+	})
+}
+
 func (db *Database) Components(name, handle string, q walk.ComponentsRequest) (ReadResult[walk.ComponentsResult], error) {
 	return query(db, name, handle, func(s *state) (walk.ComponentsResult, error) {
 		return walk.Components(s.graph, s.adj, q)

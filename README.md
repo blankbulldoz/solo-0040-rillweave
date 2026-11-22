@@ -38,6 +38,7 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | POST | `G/adjacency` | `vertex`, optional selection and `limit`; matching arcs by ID |
 | POST | `G/reach` | `root`, `max_hops`, optional selection; vertices with minimum hops |
 | POST | `G/path` | `from`, `to`, `max_hops`, optional selection; cheapest bounded path |
+| POST | `G/matrix` | `entries`, `exits`, `max_hops`, optional selection and `witness` cells; shared-search cost matrix |
 | POST | `G/components` | Optional `kinds`, `budget`; strongly connected groups and directed links |
 | POST | `G/pins` | Holds current state; returns a handle and its revision |
 | DELETE | `G/pins/{handle}` | Releases handle; in-flight reads already resolved may finish |
@@ -88,6 +89,35 @@ adjacency defaults to 100, capped at 1000. It limits returned rows, not
 matching count or budget charge. A valid no-route result is `found:false`;
 that is different from a missing endpoint or a query that ran out of budget.
 
+`matrix` answers many entry/exit pairs from one selected revision. Up to 64
+entries and 64 exits with at most 4096 cells are allowed, and entries and
+exits must each be distinct; every listed vertex must exist in that view.
+One shared search covers a whole side: entries are searched forward when they
+are no more numerous than exits, otherwise exits are searched backward, so a
+row of exits costs one search rather than one per pair. All cells share the
+same `max_hops`, `direction`, `kinds` and overall `budget`, and `searches`
+reports how many shared searches ran. Each cell has a `status`:
+
+- `route` also carries `cost`, the minimum cost within the hop limit.
+- `no_route` was fully searched and has no route under those constraints.
+- `undetermined` was not decided before the shared budget ran out.
+
+Only cells named in `witness` (`[{"entry":"...","exit":"..."}]`, distinct and
+inside the matrix) include `vertices` and `arcs`, with the same tie-breaking
+as `path`. `scanned` and `complete` describe the batch; an exhausted budget
+returns the cells already decided instead of a partial-looking table, and the
+diagonal entry-to-itself cell stays a zero-cost `route` because positive costs
+cannot beat the empty path. Witnesses and costs agree with a single `path`
+query on the same view, because the backward search also orders labels by
+cost, then arc count, then arc IDs in forward orientation.
+
+```sh
+curl -fsS http://127.0.0.1:8174/rill/v1/graphs/abutment/matrix \
+  -H 'Content-Type: application/json' \
+  -d '{"entries":["hinge","keel"],"exits":["spar","tip"],"max_hops":2,
+       "witness":[{"entry":"hinge","exit":"tip"}]}'
+```
+
 ### Storage and Verification
 
 A namespace has at most 10000 vertices, 40000 arcs and a 12 MiB image payload;
@@ -109,5 +139,6 @@ python3 examples/walkthrough.py --workflow all
 The Python 3 walkthrough starts temporary server processes with bounded
 synthetic inputs and prints success and rejection evidence. Use
 `--workflow catalog`, `commit`, `vertex`, `lookup`, `adjacency`, `reach`,
-`path`, `components`, `pin`, `compare`, `backup` or `restart` to select one.
+`path`, `matrix`, `components`, `pin`, `compare`, `backup` or `restart` to
+select one.
 Formal tests are deferred; no test runner is required.

@@ -184,6 +184,158 @@ def expect_path(base):
     return "hop-sensitive prefixes, parallel ties, reverse witness and budget verified"
 
 
+def expect_matrix(base):
+    path = GRAPH + "/matrix"
+    q = {
+        "entries": ["hinge", "keel"], "exits": ["spar", "tip", "hinge"],
+        "max_hops": 2, "kinds": ["join"],
+        "witness": [{"entry": "hinge", "exit": "tip"}, {"entry": "keel", "exit": "hinge"}],
+    }
+    value = request(base, path, "POST", q)["result"]
+    assert value["entries"] == q["entries"] and value["exits"] == q["exits"]
+    assert value["complete"] and value["searches"] == 2 and value["scanned"] == 14
+    assert value["summary"] == {"routes": 6, "no_route": 0, "undetermined": 0}
+    cells = {(cell["entry"], cell["exit"]): cell for cell in value["cells"]}
+    assert [(cell["entry"], cell["exit"]) for cell in value["cells"]] == [
+        (entry, exit) for entry in q["entries"] for exit in q["exits"]]
+    expected = {
+        ("hinge", "spar"): (2, ["bypass", "cross"]),
+        ("hinge", "tip"): (9, ["brace", "stem"]),
+        ("hinge", "hinge"): (0, []),
+        ("keel", "spar"): (1, ["cross"]),
+        ("keel", "tip"): (2, ["cross", "stem"]),
+        ("keel", "hinge"): (3, ["cross", "return"]),
+    }
+    for cell_key, (cost, arcs) in expected.items():
+        cell = cells[cell_key]
+        assert cell["status"] == "route" and cell["cost"] == cost, cell
+    # Only requested cells carry an arc witness; the rest expose cost alone.
+    assert cells[("hinge", "tip")]["witness"] == {
+        "vertices": ["hinge", "spar", "tip"], "arcs": ["brace", "stem"]}
+    assert cells[("keel", "hinge")]["witness"] == {
+        "vertices": ["keel", "spar", "hinge"], "arcs": ["cross", "return"]}
+    for cell_key in expected.keys() - {("hinge", "tip"), ("keel", "hinge")}:
+        assert "witness" not in cells[cell_key]
+    for (entry, exit), (cost, arcs) in expected.items():
+        single = request(base, GRAPH + "/path", "POST", {
+            "from": entry, "to": exit, "max_hops": 2, "kinds": ["join"]})["result"]
+        assert single["found"] and single["cost"] == cost
+        if cells[(entry, exit)].get("witness"):
+            assert single["arcs"] == arcs
+
+    # One shared search per entry covers the whole row: two entries scan
+    # 11 + 3 candidates instead of 9 + 11 + 1 + 3 + 3 for five pair queries.
+    for entries, exit_names, scan in ((["hinge"], q["exits"], 11),
+                                      (["keel"], q["exits"], 3)):
+        row = request(base, path, "POST", {
+            "entries": entries, "exits": exit_names, "max_hops": 2,
+            "kinds": ["join"]})["result"]
+        assert row["searches"] == 1 and row["scanned"] == scan
+
+    # With fewer exits than entries the batch searches backwards once per exit
+    # and still labels each cell in forward orientation.
+    wide = {"entries": ["hinge", "keel", "tip"], "exits": ["spar"], "max_hops": 3,
+            "kinds": ["join"]}
+    by_exit = request(base, path, "POST", {**wide, "witness": [
+        {"entry": "hinge", "exit": "spar"}, {"entry": "keel", "exit": "spar"}]})["result"]
+    assert by_exit["searches"] == 1 and by_exit["scanned"] == 13
+    assert by_exit["complete"]
+    assert by_exit["summary"] == {"routes": 2, "no_route": 1, "undetermined": 0}
+    exits = {(cell["entry"], cell["exit"]): cell for cell in by_exit["cells"]}
+    assert exits[("hinge", "spar")]["cost"] == 2 and exits[("keel", "spar")]["cost"] == 1
+    assert exits[("tip", "spar")] == {
+        "entry": "tip", "exit": "spar", "status": "no_route"}
+    # A backward search reports the same forward-oriented witness as /path.
+    for entry, arcs in (("hinge", ["bypass", "cross"]), ("keel", ["cross"])):
+        single = request(base, GRAPH + "/path", "POST", {
+            "from": entry, "to": "spar", "max_hops": 3, "kinds": ["join"]})["result"]
+        assert exits[(entry, "spar")]["witness"]["arcs"] == single["arcs"] == arcs
+
+    # Exhausting the backward search marks the untouched cells undetermined.
+    partial_exit = request(base, path, "POST", {**wide, "budget": 4})["result"]
+    assert not partial_exit["complete"] and partial_exit["searches"] == 1
+    assert partial_exit["scanned"] == 4
+    assert partial_exit["summary"] == {
+        "routes": 0, "no_route": 0, "undetermined": 3}
+
+    # A budget that stops midway keeps proved no-route cells apart from cells
+    # that were never decided; the shared diagonal route still needs no work.
+    mix = {"entries": ["tip", "hinge"], "exits": ["spar", "keel", "hinge"],
+           "max_hops": 2, "kinds": ["join"], "budget": 2}
+    partial = request(base, path, "POST", mix)["result"]
+    assert not partial["complete"] and partial["searches"] == 2
+    assert partial["scanned"] == 2
+    assert partial["summary"] == {"routes": 1, "no_route": 3, "undetermined": 2}
+    decided = {(cell["entry"], cell["exit"]): (cell["status"], cell.get("cost"))
+               for cell in partial["cells"]}
+    assert decided[("tip", "spar")] == decided[("tip", "keel")] == ("no_route", None)
+    assert decided[("tip", "hinge")] == ("no_route", None)
+    assert decided[("hinge", "spar")] == ("undetermined", None)
+    assert decided[("hinge", "keel")] == ("undetermined", None)
+    assert decided[("hinge", "hinge")] == ("route", 0)
+
+    # Every cell comes from one selected view, and direction and kind filters
+    # are the same for every cell in the batch.
+    pin = hold(base)
+    commit(base, 2, [put_arc("brace", "hinge", "spar", 20),
+                     put_arc("brace-alt", "hinge", "spar", 20)])
+    held = request(base, path + "?view=" + pin, "POST", q)["result"]
+    head = request(base, path, "POST", q)["result"]
+    assert {(c["entry"], c["exit"]): c["cost"] for c in held["cells"]}[("hinge", "tip")] == 9
+    assert {(c["entry"], c["exit"]): c["cost"] for c in head["cells"]}[("hinge", "tip")] == 21
+    reversed_q = {**q, "entries": ["tip"], "exits": ["hinge"], "direction": "in",
+                  "witness": [], "max_hops": 2}
+    reversed_cells = request(base, path + "?view=" + pin, "POST", reversed_q)["result"]
+    assert reversed_cells["cells"][0]["cost"] == 9
+    guides = request(base, path, "POST", {
+        **q, "kinds": ["guide"], "max_hops": 1})["result"]
+    assert guides["summary"] == {"routes": 1, "no_route": 5, "undetermined": 0}
+    assert guides["cells"][2]["status"] == "route" and guides["cells"][2]["cost"] == 0
+    zero = request(base, path, "POST", {**q, "max_hops": 0})["result"]
+    assert zero["complete"] and zero["summary"] == {
+        "routes": 1, "no_route": 5, "undetermined": 0}
+
+    # Oracle: every cell agrees with an individual /path query on the same
+    # view, for both the forward and the backward search shape.
+    commit(base, 3, [
+        put_vertex("wing"), put_arc("spur", "tip", "wing", 3),
+        put_arc("wingback", "wing", "keel", 2, "guide"),
+        put_arc("shortcut", "hinge", "tip", 4),
+    ])
+    nodes = ["hinge", "keel", "spar", "tip"]
+    for direction in ("out", "in", "both"):
+        for hop in (1, 2, 3):
+            for entries, exits in ((nodes, nodes[:2]), (nodes[:2], nodes)):
+                batch = request(base, path, "POST", {
+                    "entries": entries, "exits": exits, "max_hops": hop,
+                    "direction": direction,
+                    "witness": [{"entry": e, "exit": x} for e in entries
+                                for x in exits],
+                })["result"]
+                assert batch["complete"]
+                for cell in batch["cells"]:
+                    single = request(base, GRAPH + "/path", "POST", {
+                        "from": cell["entry"], "to": cell["exit"], "max_hops": hop,
+                        "direction": direction})["result"]
+                    if single["found"]:
+                        assert cell["status"] == "route", (direction, hop, cell)
+                        assert cell["cost"] == single["cost"], (direction, hop, cell, single)
+                        assert cell["witness"] == {
+                            "vertices": single["vertices"], "arcs": single["arcs"]}
+                    else:
+                        assert cell["status"] == "no_route", (direction, hop, cell)
+                        assert "cost" not in cell and "witness" not in cell
+
+    request(base, path, "POST", {"entries": [], "exits": ["spar"]}, 400, "invalid")
+    request(base, path, "POST", {"entries": ["hinge"], "exits": ["spar", "spar"]}, 400, "invalid")
+    request(base, path, "POST", {**q, "witness": [{"entry": "hinge", "exit": "keel"}]}, 400, "invalid")
+    request(base, path, "POST", {**q, "entries": ["nope"]}, 404, "not_found")
+    request(base, path, "POST", {**q, "max_hops": 33}, 400, "invalid")
+    request(base, path, "POST", {**q, "entries": ["hinge"] * 65}, 400, "invalid")
+    return ("shared searches resolve a cost matrix from either side; witnesses "
+            "match single paths; no-route, undetermined and budget stay distinct")
+
+
 def expect_components(base):
     path = GRAPH + "/components"
     value = request(base, path, "POST", {"kinds": ["join"]})["result"]
@@ -255,7 +407,8 @@ def expect_restart(binary, data):
 WORKFLOWS = {
     "catalog": expect_catalog, "commit": expect_commit, "vertex": expect_vertex,
     "lookup": expect_lookup, "adjacency": expect_adjacency, "reach": expect_reach,
-    "path": expect_path, "components": expect_components, "pin": expect_pin,
+    "path": expect_path, "matrix": expect_matrix, "components": expect_components,
+    "pin": expect_pin,
     "compare": expect_compare, "backup": expect_backup, "restart": expect_restart,
 }
 
