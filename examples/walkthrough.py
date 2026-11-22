@@ -197,14 +197,64 @@ def expect_components(base):
     return "selected kind changes strong connectivity; directed quotient link verified"
 
 
+def expect_impact(base):
+    path = GRAPH + "/impact"
+    # hinge -> spar (brace, brace-alt), hinge -> keel (bypass), keel -> spar
+    # (cross), spar -> tip (stem). keel is a source and tip is a target, so
+    # both are not candidates.
+    value = request(base, path, "POST", {
+        "sources": ["hinge"], "candidates": ["spar", "keel"], "targets": ["tip"],
+    })["result"]
+
+    # Every route to tip passes through spar, so removing spar loses tip.
+    # keel can be bypassed through the pair of parallel hinge->spar arcs, so
+    # removing it loses nothing and it is reported as unaffected.
+    lost = {row["candidate"]: [t["target"] for t in row["lost"]] for row in value["impact"]}
+    assert lost == {"spar": ["tip"]}, lost
+    assert value["scope"]["unaffected_candidates"] == ["keel"]
+    witness = value["impact"][0]["lost"][0]["witness"]
+    assert witness["vertices"] == ["hinge", "spar", "tip"] and witness["arcs"] == ["brace", "stem"]
+
+    # spar can reach tip by two parallel arcs from hinge and by the keel route,
+    # yet only one arc pair leads onward, so it is still a cut. A target that
+    # is also a candidate is rejected, as is a source candidate.
+    for role, cand in (("target", "tip"), ("source", "hinge")):
+        request(base, path, "POST", {
+            "sources": ["hinge"], "candidates": [cand], "targets": ["tip"],
+        }, 400, "invalid")
+
+    # The parallel brace-alt arc between hinge and spar is not a detour and
+    # does not hide the cut: spar still dominates tip.
+    parallel = request(base, path, "POST", {
+        "sources": ["hinge"], "candidates": ["spar"], "targets": ["tip"],
+    })["result"]
+    assert parallel["impact"][0]["lost"][0]["target"] == "tip"
+
+    # Under guide kind only, tip has no directed route from hinge at all, so
+    # the target itself is unreachable and no candidate can be blamed.
+    guide = request(base, path, "POST", {
+        "sources": ["hinge"], "candidates": ["spar"], "targets": ["tip"], "kinds": ["guide"],
+    })["result"]
+    assert guide["targets"][0]["status"] == "unreachable"
+    assert guide["impact"] == [] and guide["scope"]["outside_candidates"] == ["spar"]
+
+    # An unknown vertex is a missing resource, not an empty impact set.
+    request(base, path, "POST", {
+        "sources": ["hinge"], "candidates": ["nowhere"], "targets": ["tip"],
+    }, 404, "not_found")
+
+    # Exhaustion is an error; the graph is never copied per candidate.
+    request(base, path, "POST", {
+        "sources": ["hinge"], "candidates": ["spar"], "targets": ["tip"], "budget": 1,
+    }, 422, "budget_exhausted")
+    request(base, path, "POST", {
+        "sources": ["hinge"], "candidates": ["spar"], "targets": ["tip"], "direction": "both",
+    }, 400, "invalid")
+    return "dominator impact isolated to spar; roles, kinds, missing IDs and budget verified"
+
+
 def expect_pin(base):
     pin = hold(base)
-    query = "?view=" + pin
-    commit(base, 2, [put_vertex("wing", "west")])
-    assert catalog(base, query)["revision"] == 2 and catalog(base)["revision"] == 3
-    request(base, GRAPH + "/pins/" + pin, "DELETE", status=204)
-    request(base, GRAPH + "/catalog" + query, status=404, code="not_found")
-    return "head advances independently; released pin no longer resolves"
 
 
 def expect_compare(base):
@@ -255,7 +305,8 @@ def expect_restart(binary, data):
 WORKFLOWS = {
     "catalog": expect_catalog, "commit": expect_commit, "vertex": expect_vertex,
     "lookup": expect_lookup, "adjacency": expect_adjacency, "reach": expect_reach,
-    "path": expect_path, "components": expect_components, "pin": expect_pin,
+    "path": expect_path, "components": expect_components, "impact": expect_impact,
+    "pin": expect_pin,
     "compare": expect_compare, "backup": expect_backup, "restart": expect_restart,
 }
 

@@ -56,6 +56,7 @@ until restart. The instance must own its data directory exclusively.
 | reach | Return minimum hop distances, including the selected root | Insufficient expansion budget returns an error, never a complete-looking prefix |
 | path | Return least total cost within the hop limit and the witnessing arcs | No route within the chosen subgraph is distinct from budget exhaustion |
 | components | Return strongly connected components and directed links between groups | Weak connectivity and parallel arcs do not merge or multiply component links |
+| impact | Return, per candidate, the listed downstream targets that lose reachability, with witness routes | Sources and targets are fixed and never candidates; an exhausted budget is an error, never a complete-looking cut set |
 | pin | Hold and query a fixed revision, then release it | A handle from another graph, an exhausted quota or a released handle is rejected |
 | compare | Compare two views of the same graph by entity identity and schema change | A foreign handle cannot participate |
 | backup | Export one selected revision and import it under an unused name | Malformed images and occupied names do not overwrite existing state |

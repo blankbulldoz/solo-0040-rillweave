@@ -39,6 +39,7 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | POST | `G/reach` | `root`, `max_hops`, optional selection; vertices with minimum hops |
 | POST | `G/path` | `from`, `to`, `max_hops`, optional selection; cheapest bounded path |
 | POST | `G/components` | Optional `kinds`, `budget`; strongly connected groups and directed links |
+| POST | `G/impact` | `sources`, `candidates`, `targets`, optional `kinds`, `budget`; per-candidate lost targets with witnesses |
 | POST | `G/pins` | Holds current state; returns a handle and its revision |
 | DELETE | `G/pins/{handle}` | Releases handle; in-flight reads already resolved may finish |
 | POST | `G/compare` | `from` and `to` handles (empty means head); identity-based difference |
@@ -88,6 +89,48 @@ adjacency defaults to 100, capped at 1000. It limits returned rows, not
 matching count or budget charge. A valid no-route result is `found:false`;
 that is different from a missing endpoint or a query that ran out of budget.
 
+### Cut impact
+
+`POST G/impact` answers one question for many candidates at once: if a given
+intermediate vertex is removed, which of the listed downstream targets stop
+being reachable from the fixed source set? All three sets are resolved in the
+same immutable revision, optionally a held view. Sources and targets are not
+candidates; listing one is rejected rather than silently ignored.
+
+```sh
+curl -fsS http://127.0.0.1:8174/rill/v1/graphs/abutment/impact \
+  -H 'Content-Type: application/json' \
+  -d '{"sources":["hinge"],"candidates":["spar","keel"],"targets":["tip"]}'
+```
+
+The result names, for each candidate, the targets it loses together with a
+shortest witness route that existed before the removal. Each candidate's entry
+is nonempty; candidates that lose nothing are listed once under
+`scope.unaffected_candidates`, and candidates that no route from a source
+reaches are listed under `scope.outside_candidates` because they cannot be
+intermediate vertices. Targets that are not reachable at all are still listed,
+with status `unreachable`, rather than being silently dropped. The whole
+analysis uses one forward traversal plus one dominator tree, so hundreds of
+candidates cost about as much as one reach query; the graph is not copied per
+candidate.
+
+Results are replayable: sets are de-duplicated and sorted, vertices are
+numbered by identity, and ties are broken deterministically, so the same
+request against the same view returns byte-identical JSON regardless of the
+order of the input arrays. Pin the revision first if the answer must be
+reproduced after later commits.
+
+Traversal is strictly forward along stored arcs. `kinds` filters arc kinds as
+elsewhere, and `direction` may only be `out`: a reversed or mixed traversal
+would turn an upstream consumer into a downstream one. Parallel arcs between
+the same two vertices, self-loops and cycles are not independent routes, so
+they do not by themselves hide a cut.
+
+The answer is exact under the selected arc kinds; there is no hop limit,
+because a short-hop bound would let a long but real detour make a target look
+lost. Control cost with `budget`, which works as elsewhere: exhaustion rejects
+the whole request with 422 and never returns a partial impact set.
+
 ### Storage and Verification
 
 A namespace has at most 10000 vertices, 40000 arcs and a 12 MiB image payload;
@@ -109,5 +152,6 @@ python3 examples/walkthrough.py --workflow all
 The Python 3 walkthrough starts temporary server processes with bounded
 synthetic inputs and prints success and rejection evidence. Use
 `--workflow catalog`, `commit`, `vertex`, `lookup`, `adjacency`, `reach`,
-`path`, `components`, `pin`, `compare`, `backup` or `restart` to select one.
+`path`, `components`, `impact`, `pin`, `compare`, `backup` or `restart` to
+select one.
 Formal tests are deferred; no test runner is required.
