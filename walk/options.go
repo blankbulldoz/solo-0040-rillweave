@@ -63,6 +63,22 @@ func (t *topology) visit(from string, d index.Direction, use func(graph.Arc, str
 	})
 }
 
+// inspect is visit with arc identities excluded. Rejected identities are
+// still candidate inspections and are still charged to the same allowance as
+// kind rejections, so the search boundary counts work, not output.
+func (t *topology) inspect(from string, d index.Direction, skip map[string]bool, use func(graph.Arc, string) error) error {
+	return t.adj.Visit(from, d, func(a graph.Arc, next string) error {
+		if t.scanned == t.allowance {
+			return graph.Fail(graph.Budget, "expansion budget exhausted after %d candidate arcs", t.scanned)
+		}
+		t.scanned++
+		if len(t.kinds) != 0 && !t.kinds[a.Kind] || skip[a.ID] {
+			return nil
+		}
+		return use(a, next)
+	})
+}
+
 func requireVertex(g *graph.Graph, id string) error {
 	if _, ok := g.Vertices[id]; !ok {
 		return graph.Fail(graph.Missing, "vertex %q is not in this revision", id)

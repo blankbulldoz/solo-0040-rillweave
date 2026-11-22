@@ -55,6 +55,7 @@ until restart. The instance must own its data directory exclusively.
 | adjacency | List directed arc identities and endpoints | Both directions include a self-loop once; mismatched kinds do not pass |
 | reach | Return minimum hop distances, including the selected root | Insufficient expansion budget returns an error, never a complete-looking prefix |
 | path | Return least total cost within the hop limit and the witnessing arcs | No route within the chosen subgraph is distinct from budget exhaustion |
+| routes | Return two arc-disjoint bounded routes chosen by least combined cost | A single route, a proven absence and an exhausted search budget are distinct results |
 | components | Return strongly connected components and directed links between groups | Weak connectivity and parallel arcs do not merge or multiply component links |
 | pin | Hold and query a fixed revision, then release it | A handle from another graph, an exhausted quota or a released handle is rejected |
 | compare | Compare two views of the same graph by entity identity and schema change | A foreign handle cannot participate |

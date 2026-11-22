@@ -184,6 +184,62 @@ def expect_path(base):
     return "hop-sensitive prefixes, parallel ties, reverse witness and budget verified"
 
 
+def seed_relay(base):
+    request(base, GRAPHS, "POST", {"name": "relay", "schema": SCHEMA}, 201)
+    edits = [
+        put_arc("alpha", "hinge", "p", 1), put_arc("beta", "p", "tip", 5),
+        put_arc("gamma", "hinge", "q", 5), put_arc("delta", "q", "tip", 1),
+        put_arc("epsilon", "p", "q", 1),
+        put_vertex("hinge"), put_vertex("p"), put_vertex("q"), put_vertex("tip"),
+    ]
+    request(base, GRAPHS + "/relay/commit", "POST", {"base": 1, "edits": edits})
+    return GRAPHS + "/relay"
+
+
+def expect_routes(base):
+    graph = seed_relay(base)
+    routes, path = graph + "/routes", graph + "/path"
+    every = {"primary_max_hops": 3, "backup_max_hops": 3}
+    q = {"from": "hinge", "to": "tip", **every}
+    cheapest = request(base, path, "POST", {"from": "hinge", "to": "tip", "max_hops": 3})["result"]
+    assert cheapest["arcs"] == ["alpha", "epsilon", "delta"] and cheapest["cost"] == 3
+    # That cheapest single route shares an arc with both alternatives, so a
+    # search that fixed it first would wrongly report no backup at all.
+    value = request(base, routes, "POST", q)["result"]
+    assert value["found"] and value["total_cost"] == 12
+    assert value["primary"]["arcs"] == ["alpha", "beta"]
+    assert value["backup"]["arcs"] == ["gamma", "delta"]
+    assert not set(value["primary"]["arcs"]) & set(value["backup"]["arcs"])
+    # A single bridge is one route, not a pair: it cannot back itself up.
+    assert not request(base, routes, "POST", {**q, "from": "p", "to": "q"})["result"]["found"]
+    assert request(base, path, "POST", {"from": "p", "to": "q", "max_hops": 3})["result"]["arcs"] == ["epsilon"]
+    inverse = request(base, routes, "POST", {**q, "from": "tip", "to": "hinge", "direction": "in"})["result"]
+    assert inverse["primary"]["vertices"] == ["tip", "p", "hinge"]
+    assert inverse["backup"]["vertices"] == ["tip", "q", "hinge"]
+    excluded = request(base, routes, "POST", {**q, "kinds": ["guide"]})["result"]
+    assert not excluded["found"]
+    assert request(base, routes, "POST", {"from": "p", "to": "p", "primary_max_hops": 0, "backup_max_hops": 0})["result"] == {
+        "found": True, "total_cost": 0,
+        "primary": {"cost": 0, "hops": 0, "vertices": ["p"], "arcs": []},
+        "backup": {"cost": 0, "hops": 0, "vertices": ["p"], "arcs": []},
+        "scanned": 0,
+    }
+    request(base, routes, "POST", {**q, "primary_max_hops": 33}, 400, "invalid")
+    request(base, routes, "POST", {**q, "from": "ghost"}, 404, "not_found")
+    # Exhaustion is distinct from a proven absence of a pair.
+    request(base, routes, "POST", {**q, "budget": 1}, 422, "budget_exhausted")
+    # Both routes come from the selected revision, not from a later head.
+    pin = hold(base, graph)
+    request(base, graph + "/commit", "POST", {"base": 2, "edits": [
+        {"op": "drop_arc", "id": "gamma"}, put_arc("zeta", "q", "tip", 1),
+    ]})
+    pinned = request(base, routes + "?view=" + pin, "POST", q)
+    assert pinned["revision"] == 2 and pinned["result"]["total_cost"] == 12
+    assert pinned["result"]["backup"]["arcs"] == ["gamma", "delta"]
+    assert not request(base, routes, "POST", q)["result"]["found"]
+    return "arc-disjoint pair chosen jointly; cheapest single route cannot block both backups"
+
+
 def expect_components(base):
     path = GRAPH + "/components"
     value = request(base, path, "POST", {"kinds": ["join"]})["result"]
@@ -255,8 +311,9 @@ def expect_restart(binary, data):
 WORKFLOWS = {
     "catalog": expect_catalog, "commit": expect_commit, "vertex": expect_vertex,
     "lookup": expect_lookup, "adjacency": expect_adjacency, "reach": expect_reach,
-    "path": expect_path, "components": expect_components, "pin": expect_pin,
-    "compare": expect_compare, "backup": expect_backup, "restart": expect_restart,
+    "path": expect_path, "routes": expect_routes, "components": expect_components,
+    "pin": expect_pin, "compare": expect_compare, "backup": expect_backup,
+    "restart": expect_restart,
 }
 
 

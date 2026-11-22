@@ -38,6 +38,7 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | POST | `G/adjacency` | `vertex`, optional selection and `limit`; matching arcs by ID |
 | POST | `G/reach` | `root`, `max_hops`, optional selection; vertices with minimum hops |
 | POST | `G/path` | `from`, `to`, `max_hops`, optional selection; cheapest bounded path |
+| POST | `G/routes` | `from`, `to`, `primary_max_hops`, `backup_max_hops`, optional selection; cheapest arc-disjoint route pair |
 | POST | `G/components` | Optional `kinds`, `budget`; strongly connected groups and directed links |
 | POST | `G/pins` | Holds current state; returns a handle and its revision |
 | DELETE | `G/pins/{handle}` | Releases handle; in-flight reads already resolved may finish |
@@ -81,6 +82,20 @@ the lexicographically smallest arc ID sequence. Reach lists vertices in
 deterministic breadth-first discovery order. Components use only forward
 links for grouping and give each group its smallest vertex ID.
 
+`routes` returns two routes from the same graph revision: a `primary` route
+within `primary_max_hops` and a `backup` route within `backup_max_hops`. Both
+start at `from`, end at `to`, may share vertices and must not share an arc
+identity. Each route has its own `cost`, `hops`, `vertices` and `arcs`, and
+`total_cost` is their sum. The pair is chosen jointly: the cheapest primary
+is paired with the cheapest arc-disjoint backup, but any other primary whose
+pair costs less wins, so a cheap primary cannot shut out both backups. The
+lowest total cost is returned; ties prefer the cheaper primary, then the
+cheaper backup, using the same route order as `path`. A proven absence of a
+pair is `found:false`; running out of the shared candidate-arc `budget`
+before optimality is proven is `budget_exhausted`, never a one-route answer.
+The candidate-arc allowance is the search boundary: the query either proves
+the returned pair is cheapest or fails with `budget_exhausted`.
+
 `budget` counts candidate arc inspections, including candidates rejected by
 kind selection and repeated inspections during graph search. Zero or omitted
 uses 300000; exhaustion rejects the whole query. `limit` for lookup and
@@ -109,5 +124,5 @@ python3 examples/walkthrough.py --workflow all
 The Python 3 walkthrough starts temporary server processes with bounded
 synthetic inputs and prints success and rejection evidence. Use
 `--workflow catalog`, `commit`, `vertex`, `lookup`, `adjacency`, `reach`,
-`path`, `components`, `pin`, `compare`, `backup` or `restart` to select one.
-Formal tests are deferred; no test runner is required.
+`path`, `routes`, `components`, `pin`, `compare`, `backup` or `restart` to
+select one. Formal tests are deferred; no test runner is required.
