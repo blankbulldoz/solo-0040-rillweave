@@ -33,6 +33,7 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | POST | `/rill/v1/graphs` | `{"name":"...","schema":{...}}`; creates revision 1 |
 | GET | `G/catalog` | Schema, vertex and arc counts |
 | POST | `G/commit` | `{"base":1,"edits":[...]}`; new head summary |
+| POST | `G/preview` | Same body as commit; candidate rewrite plan and `digest`, publishes nothing |
 | GET | `G/vertices/{id}` | One vertex in the selected revision |
 | POST | `G/lookup` | `kind`, `property`, `value`, optional `limit`; IDs and exact count |
 | POST | `G/adjacency` | `vertex`, optional selection and `limit`; matching arcs by ID |
@@ -63,7 +64,8 @@ curl -fsS http://127.0.0.1:8174/rill/v1/graphs/abutment/path \
 ### Changes and selection
 
 Edit payloads: `put_vertex` takes `vertex`, `put_arc` takes `arc`,
-`drop_vertex` and `drop_arc` take `id`, and `set_schema` takes `schema`.
+`drop_vertex` and `drop_arc` take `id`, `set_schema` takes `schema`, and
+`rewrite_kind` takes `rewrite`.
 Puts replace full records. Existing records are validated against the schema
 after all edits; drop operations still require an existing ID at their
 position in the request. Required and unique vertex properties are checked by
@@ -71,6 +73,56 @@ kind. Optional missing values do not claim a unique value. Arc properties may
 be required but not unique. Names are lowercase ASCII identifiers up to 64
 characters (digits, hyphens and underscores are allowed after the first
 alphanumeric). Values are text up to 1024 bytes, int64 or boolean.
+
+#### Kind rewrite
+
+A `rewrite_kind` edit renames one vertex kind and splits it into several
+kinds in place, without listing every vertex or arc. It takes:
+
+```json
+{"op":"rewrite_kind","rewrite":{
+  "vertex":"strut",
+  "classes":[
+    {"kind":"pier","when":[{"property":"tag","equals":"north"}]},
+    {"kind":"deck","when":[{"property":"tag","equals":"south"}]}],
+  "default":"cap",
+  "arcs":[{"kind":"join","to":[
+    {"kind":"up"},{"kind":"over"},{"kind":"on"},{"kind":"rest"}]}]}}
+```
+
+- `classes` classify each `vertex` instance by typed property equality. A
+  missing property never matches, and each instance must match exactly one
+  class or fall through to `default`. Different instances of the old kind may
+  legitimately land in different new kinds. Without a match and without
+  `default` the edit is rejected.
+- `default` names the class for unclassified instances and must be declared by
+  the candidate schema. Conditions may only name properties the record kind
+  actually declares, with the declared type.
+- `arcs` lists the arc kinds whose instances may be affected. For each listed
+  kind, the new endpoint kinds select among `to` targets; optional `when`
+  conditions test the arc's own properties. The arc is converted only when
+  exactly one target has matching endpoints and conditions. Arcs of listed
+  kinds that resolve to no target are rejected; arcs of unlisted kinds keep
+  their record but are rejected only if the new endpoints no longer satisfy
+  their own rule.
+- Vertex IDs, property values and arc cost/IDs are preserved. Arcs that keep a
+  legal kind are reported in `preserved_arcs` and otherwise untouched.
+
+A rewrite that cannot decide a unique legal outcome fails with `409 conflict`
+and a `witness` object. It lists every unresolved vertex (`reason` `ambiguous`
+with `matched_kinds`, or `unclassified`) and every affected connection with
+both `from_endpoint` and `to_endpoint` material (ID, presence, old kind, next
+kind, possible kinds and properties) plus the candidate kinds and whether
+their endpoints and conditions matched. `total` and `truncated` bound the
+report at 64 entries while preserving the full count, so the owner can refine
+classification or arc rules without guessing.
+
+`POST G/preview` runs the same edit pipeline against a private candidate and
+returns `digest` plus the per-rewrite plan without publishing. A commit may
+include `"confirm":{"base":N,"digest":"..."}`; the digest covers the head
+contents and the ordered edits, so a confirmation prepared against an older
+head state, or a request whose edits changed, is rejected with `409 conflict`
+instead of being applied as if the preview state were still current.
 
 Selection `direction` is `out` (default), `in` or `both`. A reversed step
 uses the stored arc ID and cost; the result lists vertices in traversal
@@ -109,5 +161,5 @@ python3 examples/walkthrough.py --workflow all
 The Python 3 walkthrough starts temporary server processes with bounded
 synthetic inputs and prints success and rejection evidence. Use
 `--workflow catalog`, `commit`, `vertex`, `lookup`, `adjacency`, `reach`,
-`path`, `components`, `pin`, `compare`, `backup` or `restart` to select one.
-Formal tests are deferred; no test runner is required.
+`path`, `components`, `pin`, `compare`, `backup`, `rewrite` or `restart` to
+select one. Formal tests are deferred; no test runner is required.

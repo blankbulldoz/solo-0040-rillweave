@@ -32,6 +32,17 @@ vertex while leaving any adjacent arc is rejected. Positive arc costs are
 integers. Properties are strings, signed 64-bit integers or booleans;
 undeclared properties, explicit nulls and type coercion are not supported.
 
+A kind rewrite is one edit that classifies instances of one vertex kind into
+new kinds by property conditions (with an optional default) and converts
+listed arc kinds by the resulting endpoint kinds and arc properties. Instances
+of the same old kind may resolve to different new kinds; IDs, values and
+unlisted arcs are preserved. If a vertex or connection has no unique legal
+target, the whole candidate is rejected with a witness holding the endpoint
+material needed to disambiguate. A preview of the same edits returns a digest
+bound to the head contents and edit list; confirming with that digest against
+a different head state or changed edits is a conflict, never an implicit
+overwrite.
+
 The graph namespace moves from absent to installed. An edit set moves from
 candidate to validated to published or rejected. A graph revision can move
 from head to detached; explicitly held references remain usable. A handle
@@ -50,6 +61,7 @@ until restart. The instance must own its data directory exclusively.
 | --- | --- | --- |
 | catalog | Install or atomically replace typed rules; inspect a chosen view | Rule changes leaving incompatible graph state are rejected |
 | commit | Publish a final consistent graph at the next revision | Stale or invalid edits do not publish; unique swaps may apply in one revision |
+| preview | Return a rewrite plan and confirmation digest without publishing | A confirmation bound to another head state or edited request is rejected |
 | vertex | Return exact contents and chosen revision | A vertex missing from that view returns not found |
 | lookup | Resolve typed equality via a vertex posting | Missing properties do not match a present value; wrong types are rejected |
 | adjacency | List directed arc identities and endpoints | Both directions include a self-loop once; mismatched kinds do not pass |

@@ -7,6 +7,7 @@
   "workflow_checks":[
     {"workflow_id":"catalog","command":"python3 examples/walkthrough.py --workflow catalog"},
     {"workflow_id":"commit","command":"python3 examples/walkthrough.py --workflow commit"},
+    {"workflow_id":"rewrite","command":"python3 examples/walkthrough.py --workflow rewrite"},
     {"workflow_id":"vertex","command":"python3 examples/walkthrough.py --workflow vertex"},
     {"workflow_id":"lookup","command":"python3 examples/walkthrough.py --workflow lookup"},
     {"workflow_id":"adjacency","command":"python3 examples/walkthrough.py --workflow adjacency"},

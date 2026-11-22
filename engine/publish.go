@@ -40,11 +40,28 @@ func (db *Database) Commit(name string, batch change.Batch) (Summary, error) {
 	if err != nil {
 		return Summary{}, err
 	}
-	next, err := change.Prepare(head.graph, batch)
+	next, _, err := change.PreparePlan(head.graph, batch)
 	if err != nil {
 		return Summary{}, err
 	}
 	return db.publish(next)
+}
+
+// Preview resolves the head and computes the batch plan without publishing it.
+// The returned digest is the confirmation reference for the same base and
+// edit list; a confirmation against any other head state is rejected.
+func (db *Database) Preview(name string, batch change.Batch) (change.Plan, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+	head, err := db.resolve(name, "")
+	if err != nil {
+		return change.Plan{}, err
+	}
+	_, plan, err := change.PreparePlan(head.graph, batch)
+	if err != nil {
+		return change.Plan{}, err
+	}
+	return plan, nil
 }
 
 func (db *Database) mayInstall(name string) error {

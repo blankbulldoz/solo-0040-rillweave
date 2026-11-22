@@ -31,6 +31,18 @@ func (s service) commit(w http.ResponseWriter, r *http.Request) {
 	result(w, published, err, http.StatusOK)
 }
 
+// preview applies the edits to a private candidate and returns the rewrite
+// plan and confirmation digest. It never publishes the candidate.
+func (s service) preview(w http.ResponseWriter, r *http.Request) {
+	var q change.Batch
+	if err := decode(w, r, &q, maxRequest); err != nil {
+		result(w, nil, err, 0)
+		return
+	}
+	plan, err := s.db.Preview(r.PathValue("name"), q)
+	result(w, plan, err, http.StatusOK)
+}
+
 func (s service) hold(w http.ResponseWriter, r *http.Request) {
 	held, err := s.db.Hold(r.PathValue("name"))
 	result(w, held, err, http.StatusCreated)

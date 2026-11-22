@@ -252,11 +252,90 @@ def expect_restart(binary, data):
     return "directory held exclusively; durable head and index recovered; corruption fails startup"
 
 
+def rewrite_kind():
+    return {"op": "rewrite_kind", "rewrite": {
+        "vertex": "strut",
+        "classes": [
+            {"kind": "pier", "when": [{"property": "tag", "equals": "north"}]},
+            {"kind": "deck", "when": [{"property": "tag", "equals": "south"}]},
+        ],
+        "default": "cap",
+        "arcs": [{"kind": "join", "to": [
+            {"kind": "up"}, {"kind": "over"}, {"kind": "on"}, {"kind": "rest"},
+        ]}],
+    }}
+
+
+REWRITE_SCHEMA = {
+    "vertices": {
+        "strut": {"properties": {"tag": {"kind": "text", "unique": True}}},
+        "pier": {"properties": {"tag": {"kind": "text"}}},
+        "deck": {"properties": {"tag": {"kind": "text"}}},
+        "cap": {"properties": {"tag": {"kind": "text"}}},
+    },
+    "arcs": {
+        "join": {"from": "strut", "to": "strut"},
+        "up": {"from": "pier", "to": "strut"},
+        "over": {"from": "pier", "to": "deck"},
+        "on": {"from": "deck", "to": "strut"},
+        "rest": {"from": "cap", "to": "pier"},
+    },
+}
+
+
+def expect_rewrite(base):
+    request(base, GRAPHS, "POST", {"name": "split", "schema": REWRITE_SCHEMA}, 201)
+    graph = GRAPHS + "/split"
+
+    def split_commit(base_revision, edits, **kwargs):
+        return request(base, graph + "/commit", "POST", {"base": base_revision, "edits": edits}, **kwargs)
+
+    split_commit(1, [
+        put_vertex("a", "north"), put_vertex("b", "south"), put_vertex("c"),
+        put_arc("e1", "a", "b", 1), put_arc("e2", "c", "a", 2),
+    ])
+    held = request(base, graph + "/pins", "POST", status=201)["handle"]
+
+    ambiguous = rewrite_kind()
+    ambiguous["rewrite"]["classes"].append(
+        {"kind": "cap", "when": [{"property": "tag", "equals": "north"}]})
+    problem = request(base, graph + "/commit", "POST", {"base": 2, "edits": [ambiguous]}, 409, "conflict")
+    witness = problem["witness"]
+    assert witness["vertices"][0]["id"] == "a" and witness["vertices"][0]["reason"] == "ambiguous"
+    assert witness["vertices"][0]["matched_kinds"] == ["cap", "pier"]
+    links = {row["arc"]: row for row in witness["links"]}
+    assert links["e1"]["from_endpoint"]["properties"]["tag"] == "north"
+    assert links["e1"]["to_endpoint"]["properties"]["tag"] == "south"
+
+    plan = request(base, graph + "/preview", "POST", {"base": 2, "edits": [rewrite_kind()]})
+    assert plan["next_revision"] == 3
+    report = plan["rewrites"][0]
+    assert [(v["id"], v["to"]) for v in report["vertices"]] == [("a", "pier"), ("b", "deck"), ("c", "cap")]
+    assert [(a["id"], a["to"]) for a in report["arcs"]] == [("e1", "over"), ("e2", "rest")]
+
+    assert request(base, graph + "/catalog")["revision"] == 2
+    stale = request(base, graph + "/commit", "POST",
+                    {"base": 2, "edits": [rewrite_kind()], "confirm": {"base": 2, "digest": "0" * 64}},
+                    409, "conflict")
+    assert "preview" in stale["details"]
+
+    request(base, graph + "/commit", "POST",
+            {"base": 2, "edits": [rewrite_kind()], "confirm": {"base": 2, "digest": plan["digest"]}})
+    assert request(base, graph + "/vertices/a")["result"]["kind"] == "pier"
+    assert request(base, graph + "/vertices/a")["result"]["properties"]["tag"] == "north"
+    e1 = request(base, graph + "/adjacency", "POST", {"vertex": "a", "direction": "both"})["result"]
+    assert {a["id"]: a["kind"] for a in e1["arcs"]} == {"e1": "over", "e2": "rest"}
+    pinned = request(base, graph + "/vertices/a?view=" + held)
+    assert pinned["revision"] == 2 and pinned["result"]["kind"] == "strut"
+    return "split applied per instance; ambiguity witness names endpoints; confirm bound to preview state"
+
+
 WORKFLOWS = {
     "catalog": expect_catalog, "commit": expect_commit, "vertex": expect_vertex,
     "lookup": expect_lookup, "adjacency": expect_adjacency, "reach": expect_reach,
     "path": expect_path, "components": expect_components, "pin": expect_pin,
     "compare": expect_compare, "backup": expect_backup, "restart": expect_restart,
+    "rewrite": expect_rewrite,
 }
 
 
