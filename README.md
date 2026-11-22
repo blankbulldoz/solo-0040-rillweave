@@ -39,6 +39,7 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | POST | `G/reach` | `root`, `max_hops`, optional selection; vertices with minimum hops |
 | POST | `G/path` | `from`, `to`, `max_hops`, optional selection; cheapest bounded path |
 | POST | `G/components` | Optional `kinds`, `budget`; strongly connected groups and directed links |
+| POST | `G/rendezvous` | Two groups of devices; services all of them reach, ranked by worst device cost |
 | POST | `G/pins` | Holds current state; returns a handle and its revision |
 | DELETE | `G/pins/{handle}` | Releases handle; in-flight reads already resolved may finish |
 | POST | `G/compare` | `from` and `to` handles (empty means head); identity-based difference |
@@ -88,6 +89,36 @@ adjacency defaults to 100, capped at 1000. It limits returned rows, not
 matching count or budget charge. A valid no-route result is `found:false`;
 that is different from a missing endpoint or a query that ran out of budget.
 
+### Rendezvous
+
+`G/rendezvous` takes `{"groups":[{...},{...}], "budget":0, "limit":0}`. Each
+group names `sources` (1..1024 distinct devices), `max_hops`, an optional
+`max_cost`, and its own `kinds` and `direction`. A service is a candidate only
+when **every** device of group 0 and **every** device of group 1 reaches it
+within that group's own limits, so one arriving device per side is not enough.
+Each side is summarised by its most inconvenienced device: the one whose
+cheapest arrival costs the most, then needs the most hops, then has the largest
+source ID. A candidate is ranked by the worse of the two sides, with ties
+broken by that hop count and then the service ID.
+
+The result gives `candidates` in ranked order, the exact `matched` count,
+`remaining` and `truncated` for services outside the returned window, and one
+`selected` entry. `selected.sides[i].devices` carries one witness per device:
+the original arc IDs, the vertices in order and the summed cost, which also
+replays under the group's `direction` and `kinds`. `selected.ranked_from` names
+the side whose worst device set the rank. `found:false` with `matched:0` and no
+`selected` is the conclusive "no shared service"; an exhausted `budget` is a
+422 error that names the stopping device and how many services were still
+jointly reachable, so an unfinished search never reads as a conclusive empty
+answer.
+
+To recheck a selection: replay each witness's arcs in the revision, confirm the
+endpoints follow the group's `direction` and `kinds`, sum the stored costs, and
+check the hops and cost against `max_hops` and `max_cost`; the reported
+`worst_cost`/`worst_hops` must equal the largest per-device pair on each side.
+Services beyond `limit` remain unexcluded: `matched - len(candidates)` counts
+them, and reissuing with a larger `limit` lists them.
+
 ### Storage and Verification
 
 A namespace has at most 10000 vertices, 40000 arcs and a 12 MiB image payload;
@@ -109,5 +140,5 @@ python3 examples/walkthrough.py --workflow all
 The Python 3 walkthrough starts temporary server processes with bounded
 synthetic inputs and prints success and rejection evidence. Use
 `--workflow catalog`, `commit`, `vertex`, `lookup`, `adjacency`, `reach`,
-`path`, `components`, `pin`, `compare`, `backup` or `restart` to select one.
-Formal tests are deferred; no test runner is required.
+`path`, `components`, `rendezvous`, `pin`, `compare`, `backup` or `restart` to
+select one. Formal tests are deferred; no test runner is required.

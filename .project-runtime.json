@@ -13,6 +13,7 @@
     {"workflow_id":"reach","command":"python3 examples/walkthrough.py --workflow reach"},
     {"workflow_id":"path","command":"python3 examples/walkthrough.py --workflow path"},
     {"workflow_id":"components","command":"python3 examples/walkthrough.py --workflow components"},
+    {"workflow_id":"rendezvous","command":"python3 examples/walkthrough.py --workflow rendezvous"},
     {"workflow_id":"pin","command":"python3 examples/walkthrough.py --workflow pin"},
     {"workflow_id":"compare","command":"python3 examples/walkthrough.py --workflow compare"},
     {"workflow_id":"backup","command":"python3 examples/walkthrough.py --workflow backup"},

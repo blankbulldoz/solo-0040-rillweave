@@ -89,3 +89,9 @@ func (db *Database) Components(name, handle string, q walk.ComponentsRequest) (R
 		return walk.Components(s.graph, s.adj, q)
 	})
 }
+
+func (db *Database) Rendezvous(name, handle string, q walk.RendezvousRequest) (ReadResult[walk.RendezvousResult], error) {
+	return query(db, name, handle, func(s *state) (walk.RendezvousResult, error) {
+		return walk.Rendezvous(s.graph, s.adj, q)
+	})
+}

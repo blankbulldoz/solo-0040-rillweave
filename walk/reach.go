@@ -50,7 +50,7 @@ func Reach(g *graph.Graph, a *index.Adjacency, q ReachRequest) (ReachResult, err
 			return ReachResult{}, err
 		}
 	}
-	result.Scanned = t.scanned
+	result.Scanned = t.scanned()
 	return result, nil
 }
 
@@ -90,7 +90,7 @@ func Adjacent(g *graph.Graph, a *index.Adjacency, q AdjacentRequest) (AdjacentRe
 	if err != nil {
 		return AdjacentResult{}, err
 	}
-	result.Scanned = t.scanned
+	result.Scanned = t.scanned()
 	result.Truncated = result.Matched > limit
 	return result, nil
 }

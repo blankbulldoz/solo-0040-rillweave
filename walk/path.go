@@ -82,9 +82,9 @@ func Path(g *graph.Graph, a *index.Adjacency, q PathRequest) (PathResult, error)
 		current = next
 	}
 	if !found {
-		return PathResult{Vertices: []string{}, Arcs: []string{}, Scanned: t.scanned}, nil
+		return PathResult{Vertices: []string{}, Arcs: []string{}, Scanned: t.scanned()}, nil
 	}
-	return PathResult{true, best.cost, best.vertices, best.arcs, t.scanned}, nil
+	return PathResult{true, best.cost, best.vertices, best.arcs, t.scanned()}, nil
 }
 
 func better(a, b label) bool {

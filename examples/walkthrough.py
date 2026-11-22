@@ -197,6 +197,69 @@ def expect_components(base):
     return "selected kind changes strong connectivity; directed quotient link verified"
 
 
+def expect_rendezvous(base):
+    path = GRAPH + "/rendezvous"
+    groups = [
+        {"sources": ["hinge", "keel"], "max_hops": 1, "kinds": ["join"]},
+        {"sources": ["tip"], "max_hops": 2, "max_cost": 10, "kinds": ["join", "guide"]},
+    ]
+    value = request(base, path, "POST", {"groups": groups, "limit": 1})["result"]
+    assert value["found"] and (value["matched"], value["remaining"]) == (2, 1)
+    assert value["truncated"] and value["candidates"] == [
+        {"vertex": "keel", "worst_cost": 2, "worst_hops": 2},
+    ]
+    selected = value["selected"]
+    assert (selected["vertex"], selected["worst_cost"], selected["worst_hops"]) == ("keel", 2, 2)
+    assert selected["ranked_from"] == 1
+    first, second = selected["sides"]
+    assert first["group"] == 0 and first["worst_source"] == "hinge"
+    assert [(d["source"], d["cost"], d["hops"], d["arcs"]) for d in first["devices"]] == [
+        ("hinge", 1, 1, ["bypass"]), ("keel", 0, 0, []),
+    ]
+    assert second["group"] == 1 and second["devices"][0]["vertices"] == ["tip", "hinge", "keel"]
+    assert second["devices"][0]["arcs"] == ["track", "bypass"]
+
+    wider = request(base, path, "POST", {"groups": groups, "limit": 10})["result"]
+    assert [c["vertex"] for c in wider["candidates"]] == ["keel", "spar"]
+    # hinge is reached by hinge and by tip, but not by keel: one device per
+    # side is not enough for the service to be feasible.
+    assert "hinge" not in {c["vertex"] for c in wider["candidates"]}
+
+    tight = request(base, path, "POST", {"groups": [
+        groups[0], {**groups[1], "max_cost": 2}]})["result"]
+    assert tight["matched"] == 1 and [c["vertex"] for c in tight["candidates"]] == ["keel"]
+
+    join_only = request(base, path, "POST", {"groups": [
+        groups[0], {**groups[1], "kinds": ["join"]}]})["result"]
+    assert join_only["found"] is False and join_only["matched"] == 0
+
+    empty = request(base, path, "POST", {"groups": [
+        groups[0], {**groups[1], "max_cost": 0}]})["result"]
+    assert empty["found"] is False and empty["candidates"] == [] and empty["matched"] == 0
+
+    # A device that is itself the only service still needs every other device
+    # on its side to arrive; the zero-hop arrival must not end the search.
+    self_serve = request(base, path, "POST", {"groups": [
+        groups[0], {"sources": ["keel"], "max_hops": 1}]})["result"]
+    assert self_serve["found"] and self_serve["selected"]["vertex"] == "keel"
+    assert self_serve["selected"]["sides"][1]["devices"] == [
+        {"source": "keel", "cost": 0, "hops": 0, "vertices": ["keel"], "arcs": []},
+    ]
+    assert self_serve["selected"]["sides"][0]["worst_source"] == "hinge"
+
+    # A service can be reached from every device on each side while the other
+    # constraints differ; a no-route answer is distinct from budget exhaustion.
+    exhausted = request(base, path, "POST", {"groups": groups, "budget": 1}, 422, "budget_exhausted")
+    assert "device 1 of 2" in exhausted["details"]
+
+    request(base, path, "POST", {"groups": groups[:1]}, 400, "invalid")
+    request(base, path, "POST", {"groups": [
+        {**groups[0], "sources": ["hinge", "hinge"]}, groups[1]]}, 400, "invalid")
+    request(base, path, "POST", {"groups": [
+        {**groups[0], "sources": ["hinge", "ghost"]}, groups[1]]}, 404, "not_found")
+    return "joint service ranked by worst device cost; per-device witnesses and unexcluded candidates reported"
+
+
 def expect_pin(base):
     pin = hold(base)
     query = "?view=" + pin
@@ -255,8 +318,9 @@ def expect_restart(binary, data):
 WORKFLOWS = {
     "catalog": expect_catalog, "commit": expect_commit, "vertex": expect_vertex,
     "lookup": expect_lookup, "adjacency": expect_adjacency, "reach": expect_reach,
-    "path": expect_path, "components": expect_components, "pin": expect_pin,
-    "compare": expect_compare, "backup": expect_backup, "restart": expect_restart,
+    "path": expect_path, "components": expect_components, "rendezvous": expect_rendezvous,
+    "pin": expect_pin, "compare": expect_compare, "backup": expect_backup,
+    "restart": expect_restart,
 }
 
 

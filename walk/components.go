@@ -79,7 +79,7 @@ func Components(g *graph.Graph, a *index.Adjacency, q ComponentsRequest) (Compon
 	slices.SortFunc(result.Links, func(a, b Link) int {
 		return graph.LessIdentity(a.From, a.To, b.From, b.To)
 	})
-	result.Scanned = t.scanned
+	result.Scanned = t.scanned()
 	return result, nil
 }
 
