@@ -31,6 +31,22 @@ func BuildAdjacency(g *graph.Graph) *Adjacency {
 // Visit enumerates candidate arcs by ID. A loop occupies the head of both
 // postings at the same time and is visited once in a bidirectional read.
 func (a *Adjacency) Visit(id string, d Direction, visit func(graph.Arc, string) error) error {
+	_, _, err := a.VisitWindow(id, d, 0, 0, func(graph.Arc, string) (bool, error) {
+		return false, nil
+	}, visit)
+	return err
+}
+
+// VisitWindow enumerates the same deterministic ordering as Visit but resumes
+// at the given posting offsets and can stop early. A true stop result ends the
+// window after the current candidate, leaving the returned offsets pointing at
+// the next candidate to inspect. A loop is still visited once when the two
+// postings merge.
+func (a *Adjacency) VisitWindow(
+	id string, d Direction, outOffset, inOffset int,
+	stop func(graph.Arc, string) (bool, error),
+	visit func(graph.Arc, string) error,
+) (nextOut, nextIn int, err error) {
 	var out, in []graph.Arc
 	if d != In {
 		out = a.out[id]
@@ -38,24 +54,38 @@ func (a *Adjacency) Visit(id string, d Direction, visit func(graph.Arc, string) 
 	if d != Out {
 		in = a.in[id]
 	}
-	for len(out) != 0 || len(in) != 0 {
+	i, j := outOffset, inOffset
+	for i < len(out) || j < len(in) {
 		switch {
-		case len(in) == 0 || len(out) != 0 && out[0].ID <= in[0].ID:
-			arc := out[0]
-			out = out[1:]
-			if len(in) > 0 && arc.ID == in[0].ID {
-				in = in[1:]
+		case j >= len(in) || i < len(out) && out[i].ID <= in[j].ID:
+			arc := out[i]
+			i++
+			if j < len(in) && arc.ID == in[j].ID {
+				j++
 			}
-			if err := visit(arc, arc.To); err != nil {
-				return err
+			if err = visit(arc, arc.To); err != nil {
+				return i, j, err
+			}
+			if halt, haltErr := stop(arc, arc.To); haltErr != nil {
+				return i, j, haltErr
+			} else if halt {
+				return i, j, nil
 			}
 		default:
-			arc := in[0]
-			in = in[1:]
-			if err := visit(arc, arc.From); err != nil {
-				return err
+			arc := in[j]
+			j++
+			if i < len(out) && arc.ID == out[i].ID {
+				i++
+			}
+			if err = visit(arc, arc.From); err != nil {
+				return i, j, err
+			}
+			if halt, haltErr := stop(arc, arc.From); haltErr != nil {
+				return i, j, haltErr
+			} else if halt {
+				return i, j, nil
 			}
 		}
 	}
-	return nil
+	return i, j, nil
 }

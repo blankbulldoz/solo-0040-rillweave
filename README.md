@@ -37,6 +37,10 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | POST | `G/lookup` | `kind`, `property`, `value`, optional `limit`; IDs and exact count |
 | POST | `G/adjacency` | `vertex`, optional selection and `limit`; matching arcs by ID |
 | POST | `G/reach` | `root`, `max_hops`, optional selection; vertices with minimum hops |
+| POST | `G/reach/sessions` | Open a resumable reach session; first page carries the root |
+| POST | `G/reach/sessions/{handle}/pages` | Continue one bounded page of a reach session |
+| GET | `G/reach/sessions/{handle}` | Session revision, cumulative scans and completion state |
+| DELETE | `G/reach/sessions/{handle}` | Release a resumable reach session |
 | POST | `G/path` | `from`, `to`, `max_hops`, optional selection; cheapest bounded path |
 | POST | `G/components` | Optional `kinds`, `budget`; strongly connected groups and directed links |
 | POST | `G/pins` | Holds current state; returns a handle and its revision |
@@ -88,6 +92,29 @@ adjacency defaults to 100, capped at 1000. It limits returned rows, not
 matching count or budget charge. A valid no-route result is `found:false`;
 that is different from a missing endpoint or a query that ran out of budget.
 
+### Resumable reach
+
+A single `reach` call still rejects the whole query when its budget runs out.
+For an uneven graph whose wide frontier cannot be inspected in one call, open
+a resumable session at `G/reach/sessions` with the same `root`, `max_hops` and
+selection. The session pins the selected revision, so commits made while
+paging never change the answer: stitching the pages of one session is
+equivalent to one full `reach` query against the original graph. The response
+contains an opaque `handle`, the pinned `revision` and a first `page` holding
+only the root at zero hops.
+
+Each `POST .../pages` body carries a per-page `budget`; zero or omitted reuses
+the session budget. A page inspects at most that many candidate arcs and
+returns the newly proven `distances`, the page's `scanned` count and a
+`complete` flag. Running out of page budget is a clean pause, never an error:
+the server retains the frontier queue and the exact adjacency-row offsets, so
+a half-scanned row cannot be mistaken for a finished layer and every returned
+distance is a final minimum hop. `complete:true` means the frontier (or the
+hop bound) is exhausted and later pages return an empty completed result; an
+unknown or released handle is a distinct `not_found` problem. At most 16
+sessions exist per process and all cursor state stays server-side, so the
+client never needs to hold a wide frontier itself.
+
 ### Storage and Verification
 
 A namespace has at most 10000 vertices, 40000 arcs and a 12 MiB image payload;
@@ -109,5 +136,6 @@ python3 examples/walkthrough.py --workflow all
 The Python 3 walkthrough starts temporary server processes with bounded
 synthetic inputs and prints success and rejection evidence. Use
 `--workflow catalog`, `commit`, `vertex`, `lookup`, `adjacency`, `reach`,
-`path`, `components`, `pin`, `compare`, `backup` or `restart` to select one.
+`reach_session`, `path`, `components`, `pin`, `compare`, `backup` or
+`restart` to select one.
 Formal tests are deferred; no test runner is required.

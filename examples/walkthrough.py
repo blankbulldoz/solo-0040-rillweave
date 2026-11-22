@@ -170,6 +170,66 @@ def expect_reach(base):
     return "minimum hop distances returned; exhausted budget emits no partial result"
 
 
+def expect_reach_session(base):
+    q = {"root": "hinge", "max_hops": 2, "kinds": ["join"], "budget": 1}
+    sessions = GRAPH + "/reach/sessions"
+    full = request(base, GRAPH + "/reach", "POST",
+                   {"root": "hinge", "max_hops": 2, "kinds": ["join"]})["result"]
+    opened = request(base, sessions, "POST", q, 201)["result"]
+    handle = opened["handle"]
+    assert opened["revision"] == 2
+    # The opening page carries only the proven root at zero hops and spends no
+    # arc inspection budget.
+    assert opened["page"]["distances"] == [{"vertex": "hinge", "hops": 0}]
+    assert opened["page"]["scanned"] == 0 and not opened["page"]["complete"]
+    pages = [opened["page"]]
+    pages_path = sessions + "/" + handle + "/pages"
+    progress_path = sessions + "/" + handle
+    while not pages[-1]["complete"]:
+        # Every page is bounded: no single call may inspect more than its
+        # allowance, and a half-scanned adjacency row never fails the query.
+        page = request(base, pages_path, "POST", {"budget": 1})["result"]
+        assert page["scanned"] <= 1
+        pages.append(page)
+        assert request(base, progress_path)["result"]["complete"] == page["complete"]
+        if len(pages) > 40:
+            raise AssertionError("resumable reach never completed")
+    stitched = [row for page in pages for row in page["distances"]]
+    assert stitched == full["distances"]
+    assert sum(page["scanned"] for page in pages) == full["scanned"]
+    # A completed frontier and a lost continuation handle are distinct:
+    # advancing the finished session is a clean complete, an unknown handle
+    # is a not_found problem.
+    again = request(base, pages_path, "POST", {"budget": 1})["result"]
+    assert again["complete"] and again["distances"] == [] and again["scanned"] == 0
+    request(base, sessions + "/deadbeef/pages", "POST", {"budget": 1}, 404, "not_found")
+    request(base, progress_path.replace(handle, "deadbeef"), "GET", None, 404, "not_found")
+    # Writes between pages cannot move a pinned session. A second session is
+    # opened, paused mid-traversal, and a commit advances the head while the
+    # continuation still answers against its original revision.
+    paused = request(base, sessions, "POST", q, 201)["result"]
+    paused_handle = paused["handle"]
+    request(base, sessions + "/" + paused_handle + "/pages", "POST", {"budget": 1})
+    commit(base, 2, [put_vertex("wing", "west")])
+    assert catalog(base)["revision"] == 3
+    while True:
+        page = request(base, sessions + "/" + paused_handle + "/pages", "POST", {"budget": 1})["result"]
+        assert page is not None
+        if page["complete"]:
+            break
+    pinned = request(base, sessions + "/" + paused_handle, "GET")["result"]
+    assert pinned["revision"] == 2
+    request(base, sessions + "/" + paused_handle, "DELETE", status=204)
+    request(base, sessions + "/" + paused_handle, "GET", None, 404, "not_found")
+    # Invalid page budgets are rejected without losing the session.
+    guarded = request(base, sessions, "POST", q, 201)["result"]["handle"]
+    request(base, sessions + "/" + guarded + "/pages", "POST", {"budget": 400000}, 400, "invalid")
+    request(base, sessions + "/" + guarded, "GET", None, 200)
+    request(base, sessions + "/" + guarded, "DELETE", status=204)
+    return ("resumable reach stitches to the full table; mid-row pauses, "
+            "frontier completion, lost handles and snapshot pinning distinguished")
+
+
 def expect_path(base):
     q = {"from": "hinge", "to": "tip", "max_hops": 2, "kinds": ["join"]}
     path = GRAPH + "/path"
@@ -255,6 +315,7 @@ def expect_restart(binary, data):
 WORKFLOWS = {
     "catalog": expect_catalog, "commit": expect_commit, "vertex": expect_vertex,
     "lookup": expect_lookup, "adjacency": expect_adjacency, "reach": expect_reach,
+    "reach_session": expect_reach_session,
     "path": expect_path, "components": expect_components, "pin": expect_pin,
     "compare": expect_compare, "backup": expect_backup, "restart": expect_restart,
 }
