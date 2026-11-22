@@ -40,11 +40,18 @@ func (db *Database) Commit(name string, batch change.Batch) (Summary, error) {
 	if err != nil {
 		return Summary{}, err
 	}
-	next, err := change.Prepare(head.graph, batch)
+	next, err := admit(head, batch)
 	if err != nil {
 		return Summary{}, err
 	}
 	return db.publish(next)
+}
+
+// admit is the single admission path for a batch. Commit and Rehearse both use
+// it, so a candidate that a rehearsal accepts is exactly one that a commit on
+// the same baseline would accept.
+func admit(base *state, batch change.Batch) (*graph.Graph, error) {
+	return change.Prepare(base.graph, batch)
 }
 
 func (db *Database) mayInstall(name string) error {

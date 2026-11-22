@@ -32,6 +32,8 @@ func New(db *engine.Database) http.Handler {
 	mux.HandleFunc("POST /rill/v1/graphs/{name}/components", reading(db.Components))
 	mux.HandleFunc("POST /rill/v1/graphs/{name}/pins", s.hold)
 	mux.HandleFunc("DELETE /rill/v1/graphs/{name}/pins/{handle}", s.release)
+	mux.HandleFunc("POST /rill/v1/graphs/{name}/rehearsals", s.rehearse)
+	mux.HandleFunc("DELETE /rill/v1/graphs/{name}/rehearsals/{handle}", s.discard)
 	mux.HandleFunc("POST /rill/v1/graphs/{name}/compare", s.compare)
 	mux.HandleFunc("GET /rill/v1/graphs/{name}/image", s.export)
 	mux.HandleFunc("PUT /rill/v1/graphs/{name}/image", s.restore)

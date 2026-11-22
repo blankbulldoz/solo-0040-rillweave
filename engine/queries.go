@@ -11,6 +11,12 @@ type ReadResult[T any] struct {
 	Graph    string `json:"graph"`
 	Revision uint64 `json:"revision"`
 	Result   T      `json:"result"`
+
+	// These fields are present only for a rehearsal candidate so its revision
+	// number cannot be mistaken for a published one.
+	Rehearsal        bool   `json:"rehearsal,omitempty"`
+	Published        *bool  `json:"published,omitempty"`
+	BaselineRevision uint64 `json:"baseline_revision,omitempty"`
 }
 
 func query[T any](db *Database, name, handle string, f func(*state) (T, error)) (ReadResult[T], error) {
@@ -22,7 +28,9 @@ func query[T any](db *Database, name, handle string, f func(*state) (T, error)) 
 	if err != nil {
 		return ReadResult[T]{}, err
 	}
-	return ReadResult[T]{s.graph.Name, s.graph.Revision, result}, nil
+	out := ReadResult[T]{Graph: s.graph.Name, Revision: s.graph.Revision, Result: result}
+	out.Rehearsal, out.Published, out.BaselineRevision = identity(s)
+	return out, nil
 }
 
 type CatalogResult struct {

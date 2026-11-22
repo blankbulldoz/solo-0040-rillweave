@@ -207,6 +207,83 @@ def expect_pin(base):
     return "head advances independently; released pin no longer resolves"
 
 
+def expect_rehearse(base):
+    # A candidate that edits the catalog, adds entities and changes routes must
+    # pass the same final admission as a commit, but publish nothing.
+    rehearsal = request(base, GRAPH + "/rehearsals", "POST", {
+        "base": 2,
+        "edits": [
+            {"op": "set_schema", "schema": {**SCHEMA, "arcs": {
+                **SCHEMA["arcs"], "span": {"from": "strut", "to": "strut"},
+            }}},
+            put_arc("span", "hinge", "tip", 1, "span"),
+            put_arc("brace-alt", "hinge", "spar", 1),
+        ],
+    }, 201)
+    handle = rehearsal["handle"]
+    assert (rehearsal["rehearsal"], rehearsal["published"]) == (True, False)
+    assert (rehearsal["baseline_revision"], rehearsal["head_revision"]) == (2, 2)
+    assert not rehearsal["stale_baseline"] and rehearsal["candidate"]["revision"] == 3
+
+    head = request(base, GRAPH + "/path", "POST", {
+        "from": "hinge", "to": "tip", "max_hops": 3, "kinds": ["join"],
+    })
+    candidate = request(base, GRAPH + "/path?view=" + handle, "POST", {
+        "from": "hinge", "to": "tip", "max_hops": 3, "kinds": ["join", "span"],
+    })
+    assert head["result"]["cost"] == 3 and "rehearsal" not in head
+    assert candidate["result"]["cost"] == 1 and candidate["result"]["arcs"] == ["span"]
+    assert (candidate["rehearsal"], candidate["published"]) == (True, False)
+    assert candidate["revision"] == 3 and candidate["baseline_revision"] == 2
+
+    # One candidate serves several reads and comparisons without republishing.
+    assert request(base, GRAPH + "/catalog?view=" + handle)["result"]["schema"]["arcs"]["span"]
+    diff = request(base, GRAPH + "/compare", "POST", {"to": handle})
+    assert (diff["from"], diff["to"]) == (2, 3) and diff["published"] is False
+    assert diff["arcs"]["added"] == ["span"] and diff["arcs"]["updated"] == ["brace-alt"]
+
+    # The durable head, its image and the retry rules are unchanged.
+    assert catalog(base)["revision"] == 2
+    request(base, GRAPH + "/commit", "POST", {"base": 2, "edits": [
+        put_arc("span", "hinge", "tip", 1, "span"),
+    ]}, 400, "invalid")
+    request(base, GRAPH + "/rehearsals", "POST", {"base": 2, "edits": [
+        put_arc("span", "hinge", "tip", 1, "span"),
+    ]}, 400, "invalid")
+    request(base, GRAPH + "/rehearsals", "POST", {"base": 1, "edits": [
+        put_vertex("extra"),
+    ]}, 409, "conflict")
+    request(base, GRAPH + "/image?view=" + handle, status=400, code="invalid")
+
+    # After the head advances, an explicit pin rehearses the same old baseline.
+    pin = hold(base)
+    commit(base, 2, [put_vertex("keel", "mid"), put_vertex("post")])
+    old = request(base, GRAPH + "/rehearsals", "POST", {
+        "base": 2, "baseline": pin, "edits": [put_vertex("wing", "west")],
+    }, 201)
+    assert old["stale_baseline"] and (old["baseline_revision"], old["head_revision"]) == (2, 3)
+    # The candidate keeps the older records: no rev-3 vertex and no rev-3 tag.
+    request(base, GRAPH + "/vertices/post?view=" + old["handle"], status=404, code="not_found")
+    assert request(base, GRAPH + "/vertices/keel?view=" + old["handle"])["result"] == {
+        "id": "keel", "kind": "strut",
+    }
+    assert request(base, GRAPH + "/vertices/post")["result"]["id"] == "post"
+    request(base, GRAPH + "/rehearsals", "POST", {
+        "base": 2, "baseline": old["handle"], "edits": [put_vertex("other")],
+    }, 400, "invalid")
+    request(base, GRAPH + "/pins/" + old["handle"], "DELETE", status=404, code="not_found")
+
+    # A stale base without a baseline pin is still a conflict.
+    request(base, GRAPH + "/rehearsals", "POST", {"base": 2, "edits": [
+        put_vertex("extra"),
+    ]}, 409, "conflict")
+
+    # Discarding leaves no handle behind.
+    request(base, GRAPH + "/rehearsals/" + handle, "DELETE", status=204)
+    request(base, GRAPH + "/catalog?view=" + handle, status=404, code="not_found")
+    return "candidate admitted and queried in memory; head, image and pin quota unaffected"
+
+
 def expect_compare(base):
     pin = hold(base)
     commit(base, 2, [put_vertex("keel", "mid"), {"op": "drop_arc", "id": "brace-alt"}])
@@ -256,6 +333,7 @@ WORKFLOWS = {
     "catalog": expect_catalog, "commit": expect_commit, "vertex": expect_vertex,
     "lookup": expect_lookup, "adjacency": expect_adjacency, "reach": expect_reach,
     "path": expect_path, "components": expect_components, "pin": expect_pin,
+    "rehearse": expect_rehearse,
     "compare": expect_compare, "backup": expect_backup, "restart": expect_restart,
 }
 

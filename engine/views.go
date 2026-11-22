@@ -11,7 +11,13 @@ func (db *Database) resolve(name, handle string) (*state, error) {
 		return nil, err
 	}
 	if handle != "" {
-		return db.held.Resolve(name, handle)
+		if s, ok := db.held.Peek(name, handle); ok {
+			return s, nil
+		}
+		if s, ok := db.rehearsed.Peek(name, handle); ok {
+			return s, nil
+		}
+		return nil, graph.Fail(graph.Missing, "view handle is not available for this graph")
 	}
 	if head := db.heads[name]; head != nil {
 		return head, nil
@@ -53,12 +59,25 @@ func (db *Database) Release(name, handle string) error {
 	return db.held.Release(name, handle)
 }
 
-func (db *Database) Comparison(name, fromHandle, toHandle string) (change.Difference, error) {
+func (db *Database) Comparison(name, fromHandle, toHandle string) (ComparisonResult, error) {
 	from, to, err := db.pair(name, fromHandle, toHandle)
 	if err != nil {
-		return change.Difference{}, err
+		return ComparisonResult{}, err
 	}
-	return change.Compare(from.graph, to.graph), nil
+	out := ComparisonResult{Difference: change.Compare(from.graph, to.graph)}
+	// A difference involving an unpublished candidate is labelled as such, even
+	// when the other side is the durable head.
+	if from.rehearsal || to.rehearsal {
+		no := false
+		out.Rehearsal, out.Published = true, &no
+	}
+	return out, nil
+}
+
+type ComparisonResult struct {
+	change.Difference
+	Rehearsal bool  `json:"rehearsal,omitempty"`
+	Published *bool `json:"published,omitempty"`
 }
 
 func (db *Database) pair(name, fromHandle, toHandle string) (*state, *state, error) {
@@ -77,5 +96,19 @@ func (db *Database) Export(name, handle string) (image.Envelope, error) {
 	if err != nil {
 		return image.Envelope{}, err
 	}
+	if s.rehearsal {
+		return image.Envelope{}, graph.Fail(graph.Invalid,
+			"a rehearsal candidate has no publishable image; hold a pin or commit it first")
+	}
 	return image.Encode(s.graph)
+}
+
+// identity returns the revision and headers a rehearsal candidate carries, so
+// wire responses can never present an unpublished state as a durable head.
+func identity(s *state) (rehearsal bool, published *bool, baseline uint64) {
+	if !s.rehearsal {
+		return false, nil, 0
+	}
+	no := false
+	return true, &no, s.baseline
 }

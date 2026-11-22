@@ -12,24 +12,32 @@ import (
 	"rillweave/view"
 )
 
-const MaxGraphs = 32
+const (
+	MaxGraphs     = 32
+	MaxRehearsals = 16
+)
 
 type state struct {
 	graph *graph.Graph
 	adj   *index.Adjacency
 	props *index.Postings
+
+	// Rehearsal metadata marks a private candidate that never became a head.
+	rehearsal bool
+	baseline  uint64
 }
 
 func materialize(g *graph.Graph) *state {
-	return &state{g, index.BuildAdjacency(g), index.BuildPostings(g)}
+	return &state{graph: g, adj: index.BuildAdjacency(g), props: index.BuildPostings(g)}
 }
 
 type Database struct {
-	mu    sync.RWMutex
-	disk  *disk.Directory
-	heads map[string]*state
-	held  view.Handles[*state]
-	fault bool
+	mu        sync.RWMutex
+	disk      *disk.Directory
+	heads     map[string]*state
+	held      view.Handles[*state]
+	rehearsed view.Handles[*state]
+	fault     bool
 }
 
 func Open(root string) (*Database, error) {
@@ -37,7 +45,10 @@ func Open(root string) (*Database, error) {
 	if err != nil {
 		return nil, err
 	}
-	db := &Database{disk: dir, heads: make(map[string]*state), held: view.New[*state]()}
+	db := &Database{
+		disk: dir, heads: make(map[string]*state),
+		held: view.New[*state](), rehearsed: view.NewLimited[*state](MaxRehearsals),
+	}
 	err = dir.RestoreHeads(db.acceptHead)
 	if err != nil {
 		_ = dir.Close()
