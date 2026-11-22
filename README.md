@@ -39,6 +39,7 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | POST | `G/reach` | `root`, `max_hops`, optional selection; vertices with minimum hops |
 | POST | `G/path` | `from`, `to`, `max_hops`, optional selection; cheapest bounded path |
 | POST | `G/components` | Optional `kinds`, `budget`; strongly connected groups and directed links |
+| POST | `G/components` (expand) | `expand: {from,to,kind?,limit?}` plus optional `expected_revision`; the original arcs and exact per-kind counts behind one group link |
 | POST | `G/pins` | Holds current state; returns a handle and its revision |
 | DELETE | `G/pins/{handle}` | Releases handle; in-flight reads already resolved may finish |
 | POST | `G/compare` | `from` and `to` handles (empty means head); identity-based difference |
@@ -80,6 +81,32 @@ starting vertex cannot beat the empty path. Ties prefer fewer arcs, then
 the lexicographically smallest arc ID sequence. Reach lists vertices in
 deterministic breadth-first discovery order. Components use only forward
 links for grouping and give each group its smallest vertex ID.
+
+### Link expansion and revision drift
+
+`links` are pairs of group IDs, not arc identities: many parallel arcs of several kinds can hide
+behind one wide link. Add an `expand` object to a components query to open one link in the same
+response. The strongly connected partition is computed first and is never recomputed for an
+expansion, so opening a link cannot change the confirmed groups or links.
+
+```json
+{"kinds":["join","guide"],"expected_revision":4,
+ "expand":{"from":"hinge","to":"tip","kind":"join","limit":100}}
+```
+
+`expand.from`/`expand.to` name groups returned by this partition and identify one directed link;
+an unknown group or a pair that is not a link returns 404. `expand.kind` browses one arc kind and
+must stay inside the request `kinds` selection, so filtering for review never widens the grouping
+scope. The result `expanded.counts` always lists every crossing arc kind with its exact count,
+including kinds whose rows are not returned. `expanded.buckets` carries the original arcs (parallel
+arcs keep their own IDs) ordered by arc ID; `limit` (default 100, capped at 1000) bounds rows per
+kind, not the counts, and `truncated` reports when a bucket is windowed.
+
+`expected_revision` is the revision at which the partition was originally confirmed. When it does
+not match the selected view's revision the query fails with 409 instead of regrouping new members;
+the expansion is then re-run against a freshly confirmed partition. With `?view={handle}` on a
+pinned revision the partition and its original arcs stay frozen, so a later head change cannot
+silently alter the review.
 
 `budget` counts candidate arc inspections, including candidates rejected by
 kind selection and repeated inspections during graph search. Zero or omitted

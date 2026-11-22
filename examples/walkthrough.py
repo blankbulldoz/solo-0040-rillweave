@@ -194,7 +194,84 @@ def expect_components(base):
     assert value["links"] == [{"from": "hinge", "to": "tip"}]
     assert len(request(base, path, "POST", {})["result"]["groups"]) == 1
     request(base, path, "POST", {"budget": 1}, 422, "budget_exhausted")
-    return "selected kind changes strong connectivity; directed quotient link verified"
+
+    # Two arc kinds now cross the same wide group link concurrently.
+    commit(base, 2, [
+        put_vertex("wing", "west"),
+        put_arc("wire", "spar", "wing", 1, "join"),
+        put_arc("wire-alt", "spar", "wing", 2, "join"),
+        put_arc("rope", "spar", "wing", 1, "guide"),
+    ])
+    value = request(base, path, "POST", {"kinds": ["join", "guide"]})["result"]
+    assert value["groups"] == [
+        {"id": "hinge", "vertices": ["hinge", "keel", "spar", "tip"]},
+        {"id": "wing", "vertices": ["wing"]},
+    ]
+    assert value["links"] == [{"from": "hinge", "to": "wing"}]
+    expanded = request(base, path, "POST", {
+        "kinds": ["join", "guide"],
+        "expand": {"from": "hinge", "to": "wing"},
+    })["result"]["expanded"]
+    assert expanded["revision"] == 3
+    assert expanded["counts"] == [
+        {"kind": "guide", "matched": 1},
+        {"kind": "join", "matched": 2},
+    ]
+    assert [bucket["kind"] for bucket in expanded["buckets"]] == ["guide", "join"]
+    assert [arc["id"] for bucket in expanded["buckets"] for arc in bucket["arcs"]] == [
+        "rope", "wire", "wire-alt",
+    ]
+    assert not expanded["truncated"]
+
+    # Browsing one kind narrows the rows but never widens or recomputes groups.
+    browsed = request(base, path, "POST", {
+        "kinds": ["join", "guide"],
+        "expand": {"from": "hinge", "to": "wing", "kind": "join"},
+    })["result"]["expanded"]
+    assert browsed["counts"] == expanded["counts"]
+    assert [bucket["kind"] for bucket in browsed["buckets"]] == ["join"]
+    assert [arc["id"] for arc in browsed["buckets"][0]["arcs"]] == ["wire", "wire-alt"]
+    request(base, path, "POST", {
+        "kinds": ["join"],
+        "expand": {"from": "hinge", "to": "tip", "kind": "guide"},
+    }, 400, "invalid")
+
+    # A limit windows rows per kind while exact counts stay complete.
+    windowed = request(base, path, "POST", {
+        "kinds": ["join", "guide"],
+        "expand": {"from": "hinge", "to": "wing", "limit": 1},
+    })["result"]["expanded"]
+    assert windowed["counts"] == expanded["counts"] and windowed["truncated"]
+    assert [arc["id"] for bucket in windowed["buckets"] for arc in bucket["arcs"]] == [
+        "rope", "wire",
+    ]
+    request(base, path, "POST", {
+        "kinds": ["join", "guide"],
+        "expand": {"from": "hinge", "to": "ghost"},
+    }, 404, "not_found")
+    request(base, path, "POST", {
+        "kinds": ["join", "guide"],
+        "expand": {"from": "wing", "to": "hinge"},
+    }, 404, "not_found")
+
+    # A later revision changes the partition; stale confirmation must conflict
+    # while the pinned view keeps the original groups and original arcs.
+    pin = hold(base)
+    commit(base, 3, [put_arc("back", "wing", "hinge", 1, "join")])
+    stale = {
+        "kinds": ["join", "guide"], "expected_revision": 3,
+        "expand": {"from": "hinge", "to": "wing"},
+    }
+    request(base, path, "POST", stale, 409, "conflict")
+    request(base, path, "POST", {"expected_revision": 3}, 409, "conflict")
+    frozen = request(base, path + "?view=" + pin, "POST", stale)["result"]["expanded"]
+    assert frozen["revision"] == 3 and frozen["counts"] == expanded["counts"]
+    assert [arc["id"] for bucket in frozen["buckets"] for arc in bucket["arcs"]] == [
+        "rope", "wire", "wire-alt",
+    ]
+    fresh = request(base, path, "POST", {"kinds": ["join", "guide"]})["result"]
+    assert len(fresh["groups"]) == 1 and fresh["links"] == []
+    return "quotient link expands to original arcs with exact per-kind counts; stale partitions conflict instead of silently regrouping"
 
 
 def expect_pin(base):
