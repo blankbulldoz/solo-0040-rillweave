@@ -48,17 +48,41 @@ func propertyRules(kind string, properties map[string]graph.PropertyRule, unique
 	return nil
 }
 
-func LookupRule(s graph.Schema, kind, property string, value graph.Scalar) error {
+// PropertyRule resolves a typed property declared on a vertex kind.
+func PropertyRule(s graph.Schema, kind, property string) (graph.PropertyRule, error) {
 	rule, ok := s.Vertices[kind]
 	if !ok {
-		return graph.Fail(graph.Invalid, "unknown vertex kind %q", kind)
+		return graph.PropertyRule{}, graph.Fail(graph.Invalid, "unknown vertex kind %q", kind)
 	}
 	field, ok := rule.Properties[property]
 	if !ok {
-		return graph.Fail(graph.Invalid, "unknown property %q on vertex kind %q", property, kind)
+		return graph.PropertyRule{}, graph.Fail(graph.Invalid, "unknown property %q on vertex kind %q", property, kind)
+	}
+	return field, nil
+}
+
+func LookupRule(s graph.Schema, kind, property string, value graph.Scalar) error {
+	field, err := PropertyRule(s, kind, property)
+	if err != nil {
+		return err
 	}
 	if field.Kind != value.Kind || !value.Valid() {
 		return graph.Fail(graph.Invalid, "property %q requires %s", property, field.Kind)
+	}
+	return nil
+}
+
+// PropertyValues verifies that every requested filter value matches the
+// declared scalar kind of the named property.
+func PropertyValues(s graph.Schema, kind, property string, values []graph.Scalar) error {
+	field, err := PropertyRule(s, kind, property)
+	if err != nil {
+		return err
+	}
+	for _, value := range values {
+		if field.Kind != value.Kind || !value.Valid() {
+			return graph.Fail(graph.Invalid, "property %q requires %s", property, field.Kind)
+		}
 	}
 	return nil
 }

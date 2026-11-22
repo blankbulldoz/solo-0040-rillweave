@@ -89,3 +89,15 @@ func (db *Database) Components(name, handle string, q walk.ComponentsRequest) (R
 		return walk.Components(s.graph, s.adj, q)
 	})
 }
+
+func (db *Database) Coverage(name, handle string, q walk.CoverageRequest) (ReadResult[walk.CoverageResult], error) {
+	return query(db, name, handle, func(s *state) (walk.CoverageResult, error) {
+		if q.Kind == "" || q.Property == "" {
+			return walk.CoverageResult{}, graph.Fail(graph.Invalid, "coverage requires a vertex kind and a property")
+		}
+		if err := catalog.PropertyValues(s.graph.Schema, q.Kind, q.Property, q.Values); err != nil {
+			return walk.CoverageResult{}, err
+		}
+		return walk.Coverage(s.graph, s.adj, q)
+	})
+}

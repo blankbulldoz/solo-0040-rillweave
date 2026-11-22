@@ -73,6 +73,13 @@ def put_vertex(key, tag=None):
     return {"op": "put_vertex", "vertex": {"id": key, "kind": "strut", "properties": props}}
 
 
+def put_tiered_vertex(key, tier, tag=None):
+    props = {"tier": tier}
+    if tag is not None:
+        props["tag"] = tag
+    return {"op": "put_vertex", "vertex": {"id": key, "kind": "strut", "properties": props}}
+
+
 def put_arc(key, source, target, cost, kind="join"):
     return {"op": "put_arc", "arc": {
         "id": key, "kind": kind, "from": source, "to": target, "cost": cost,
@@ -197,6 +204,99 @@ def expect_components(base):
     return "selected kind changes strong connectivity; directed quotient link verified"
 
 
+def coverage_schema(base):
+    expanded = {
+        "vertices": {
+            "strut": {"properties": {
+                **SCHEMA["vertices"]["strut"]["properties"], "tier": {"kind": "int"},
+            }},
+            "brace": {"properties": {"tag": {"kind": "text"}}},
+        },
+        "arcs": {
+            **SCHEMA["arcs"],
+            "bridge": {"from": "strut", "to": "brace"},
+        },
+    }
+    request(base, GRAPH + "/commit", "POST", {"base": 2, "edits": [
+        {"op": "set_schema", "schema": expanded},
+        put_tiered_vertex("hinge", 5, "north"), put_tiered_vertex("keel", 9, "mid"),
+        put_tiered_vertex("spar", 1, "south"), put_vertex("tip"),
+        {"op": "put_vertex", "vertex": {"id": "gusset", "kind": "brace",
+                                        "properties": {"tag": "east"}}},
+        put_arc("span", "tip", "gusset", 1, "bridge"),
+    ]})
+    return expanded
+
+
+def bucket_map(layer):
+    return {bucket["class"] + ":" + str(bucket.get("value")): bucket for bucket in layer["buckets"]}
+
+
+def expect_coverage(base):
+    coverage_schema(base)
+    path = GRAPH + "/coverage"
+    q = {"root": "hinge", "max_hops": 3, "kind": "strut", "property": "tier",
+         "kinds": ["join"], "limit": 10}
+    value = request(base, path, "POST", q)["result"]
+    assert value["complete"] is True
+    assert [layer["hops"] for layer in value["layers"]] == [0, 1, 2, 3]
+    assert [layer["reached"] for layer in value["layers"]] == [1, 2, 1, 0]
+    assert sum(bucket["count"] for bucket in value["totals"]) == 4
+
+    by_layer = [bucket_map(layer) for layer in value["layers"]]
+    # The root and each minimum-hop layer bucket the typed tier exactly once,
+    # despite two parallel hinge->spar arcs and the hinge self-loop.
+    assert by_layer[0]["value:5"]["count"] == 1
+    assert by_layer[0]["value:5"]["witnesses"] == ["hinge"]
+    assert by_layer[1]["value:1"]["count"] == 1
+    assert by_layer[1]["value:1"]["witnesses"] == ["spar"]
+    assert by_layer[1]["value:9"]["count"] == 1
+    assert by_layer[1]["value:9"]["witnesses"] == ["keel"]
+    assert by_layer[2]["missing:None"]["count"] == 1
+    assert by_layer[2]["missing:None"]["witnesses"] == ["tip"]
+    assert value["layers"][3]["buckets"] == []
+
+    # A second vertex kind that never declares "tier" is bucketed separately
+    # from a declared-but-missing value.
+    mixed = request(base, path, "POST", {**q, "kinds": ["join", "bridge"]})["result"]
+    assert [layer["reached"] for layer in mixed["layers"]] == [1, 2, 1, 1]
+    undeclared = bucket_map(mixed["layers"][3])["undeclared:None"]
+    assert undeclared["count"] == 1 and undeclared["witnesses"] == ["gusset"]
+    assert "missing:None" not in bucket_map(mixed["layers"][3])
+
+    # A filtered census keeps exact counts for requested low-frequency values
+    # and routes every other present value to the explicit other bucket.
+    filtered = request(base, path, "POST", {**q, "values": [1, 9]})["result"]
+    totals = bucket_map({"buckets": filtered["totals"]})
+    assert totals["value:1"]["count"] == 1 and totals["value:9"]["count"] == 1
+    assert totals["other:None"]["count"] == 1
+    assert totals["other:None"]["witnesses"] == ["hinge"]
+    assert totals["missing:None"]["count"] == 1
+    assert totals["missing:None"]["witnesses"] == ["tip"]
+
+    # The witness window is bounded while the count stays exact. With one
+    # requested value, the other two present tiers share one other bucket; a
+    # limit of one keeps the exact count but truncates the witness window.
+    window = request(base, path, "POST", {
+        **q, "values": [1], "limit": 1})["result"]
+    other = bucket_map({"buckets": window["totals"]})["other:None"]
+    assert other["count"] == 2 and other["witnesses"] == ["hinge"]
+    assert other["truncated"] is True
+
+    # Empty layers stay present so layer indices map to exact hop distances.
+    assert all(isinstance(layer["buckets"], list) for layer in window["layers"])
+
+    # Undeclared properties stay distinct from present-but-missing values.
+    undeclared = request(base, path, "POST", {
+        **q, "property": "absent",
+    }, status=400, code="invalid")
+    assert "unknown property" in undeclared["details"]
+    request(base, path, "POST", {**q, "values": ["text-not-int"]}, 400, "invalid")
+    request(base, path, "POST", {**q, "root": "ghost"}, 404, "not_found")
+    request(base, path, "POST", {**q, "budget": 2}, 422, "budget_exhausted")
+    return "exact per-layer property census, missing/undeclared split, filter other bucket and all-or-nothing budget verified"
+
+
 def expect_pin(base):
     pin = hold(base)
     query = "?view=" + pin
@@ -255,7 +355,8 @@ def expect_restart(binary, data):
 WORKFLOWS = {
     "catalog": expect_catalog, "commit": expect_commit, "vertex": expect_vertex,
     "lookup": expect_lookup, "adjacency": expect_adjacency, "reach": expect_reach,
-    "path": expect_path, "components": expect_components, "pin": expect_pin,
+    "path": expect_path, "components": expect_components, "coverage": expect_coverage,
+    "pin": expect_pin,
     "compare": expect_compare, "backup": expect_backup, "restart": expect_restart,
 }
 

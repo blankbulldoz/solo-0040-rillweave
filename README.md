@@ -37,6 +37,7 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | POST | `G/lookup` | `kind`, `property`, `value`, optional `limit`; IDs and exact count |
 | POST | `G/adjacency` | `vertex`, optional selection and `limit`; matching arcs by ID |
 | POST | `G/reach` | `root`, `max_hops`, optional selection; vertices with minimum hops |
+| POST | `G/coverage` | `root`, `max_hops`, `kind`, `property`, optional `values`/`limit`/selection; per-layer property buckets |
 | POST | `G/path` | `from`, `to`, `max_hops`, optional selection; cheapest bounded path |
 | POST | `G/components` | Optional `kinds`, `budget`; strongly connected groups and directed links |
 | POST | `G/pins` | Holds current state; returns a handle and its revision |
@@ -88,6 +89,35 @@ adjacency defaults to 100, capped at 1000. It limits returned rows, not
 matching count or budget charge. A valid no-route result is `found:false`;
 that is different from a missing endpoint or a query that ran out of budget.
 
+### Dependency distance coverage
+
+`POST G/coverage` expands the same bounded breadth-first search as reach, then
+counts each vertex exactly once, at its minimum hop distance, bucketed by one
+typed vertex property. Parallel arcs and multiple predecessors do not multiply
+a vertex: only the first arrival contributes. `layers` has one entry for every
+hop from 0 through `max_hops` (empty layers stay present so the index is the
+exact distance); `totals` aggregates every layer in the same view.
+
+Each bucket has an exact `count` and a bounded `witnesses` window governed by
+`limit` (default 100, capped at 1000), with `truncated` set when more members
+exist than the window holds. Bucket classes are:
+
+- `value` — the property is present, carrying the typed scalar (no coercion);
+- `other` — present but not among the optional `values` filter. Omitting
+  `values` requests the complete census with one `value` bucket per distinct
+  scalar; supplying it isolates the requested low-frequency values while every
+  other present value still counts exactly under `other`;
+- `missing` — the reached vertex's kind declares the property but the record
+  omits it;
+- `undeclared` — the reached vertex's own kind never declares the property.
+
+The requested `kind` and `property` must exist in the selected revision's
+schema and every filter value must match the declared scalar kind, otherwise
+the request is rejected as invalid; `missing` and `undeclared` are therefore
+never confused with a bad request. As with reach, exhausting `budget` rejects
+the whole query with 422 rather than returning a half-finished census, and the
+result carries `complete:true` only for a fully evaluated traversal.
+
 ### Storage and Verification
 
 A namespace has at most 10000 vertices, 40000 arcs and a 12 MiB image payload;
@@ -109,5 +139,6 @@ python3 examples/walkthrough.py --workflow all
 The Python 3 walkthrough starts temporary server processes with bounded
 synthetic inputs and prints success and rejection evidence. Use
 `--workflow catalog`, `commit`, `vertex`, `lookup`, `adjacency`, `reach`,
-`path`, `components`, `pin`, `compare`, `backup` or `restart` to select one.
+`coverage`, `path`, `components`, `pin`, `compare`, `backup` or `restart` to
+select one.
 Formal tests are deferred; no test runner is required.
