@@ -25,16 +25,17 @@ database, not a place to stage arbitrary inputs or share writes between servers.
 Let `G` be `/rill/v1/graphs/{name}`. Pass `?view={handle}` on an applicable
 read to use a fixed view rather than the head. Normal reads return `graph`,
 `revision` and `result`. Errors give `code` and `details`: 400 invalid input,
-404 absent resource, 409 conflicting current graph state, 422 budget/capacity,
-503 storage unavailable. Unrecognized routes use the HTTP mux response.
+404 absent resource, 409 conflicting current graph state, 412 a declared match
+set no longer holds, 422 budget/capacity, 503 storage unavailable.
+Unrecognized routes use the HTTP mux response.
 
 | Method | Resource | Input / Result |
 | --- | --- | --- |
 | POST | `/rill/v1/graphs` | `{"name":"...","schema":{...}}`; creates revision 1 |
 | GET | `G/catalog` | Schema, vertex and arc counts |
-| POST | `G/commit` | `{"base":1,"edits":[...]}`; new head summary |
+| POST | `G/commit` | `{"base":1,"edits":[...],"expect":[...]}`; new head summary |
 | GET | `G/vertices/{id}` | One vertex in the selected revision |
-| POST | `G/lookup` | `kind`, `property`, `value`, optional `limit`; IDs and exact count |
+| POST | `G/lookup` | `kind`, `property`, `value`, optional `limit`; IDs, exact count and set digest |
 | POST | `G/adjacency` | `vertex`, optional selection and `limit`; matching arcs by ID |
 | POST | `G/reach` | `root`, `max_hops`, optional selection; vertices with minimum hops |
 | POST | `G/path` | `from`, `to`, `max_hops`, optional selection; cheapest bounded path |
@@ -88,6 +89,28 @@ adjacency defaults to 100, capped at 1000. It limits returned rows, not
 matching count or budget charge. A valid no-route result is `found:false`;
 that is different from a missing endpoint or a query that ran out of budget.
 
+### Match-set preconditions
+
+A commit whose edits depend on a typed lookup — insert or rewire arcs based on
+the vertices currently matching `kind`/`property`/`value` — can declare what it
+read instead of only naming a head revision. `expect` holds up to 64 entries;
+each names a `match` (`kind`, `property`, `value`, with the same meaning as
+`G/lookup`) and the complete expected set, either as `ids` (an empty array
+declares no matches) or as a short `digest`. The digest is the lowercase
+hexadecimal SHA-256 of the sorted IDs joined by one newline — the empty set
+digests the empty string — and lookup responses report the same `digest` over
+the full match set, so large sets never need to be transferred in full.
+
+Declarations are verified against the revision that accepts the edits, under
+the commit lock: the `match` must be meaningful under the schema in force
+there, and the declared set must equal the actual set exactly, so a match
+inserted after the caller read still fails the commit. When `expect` is
+present, `base` may trail the head — sets that still hold stand in for a
+current base, and only a base beyond the head is a conflict. A declaration
+that is malformed or meaningless under the current schema is 400 invalid
+input; a well-formed set that no longer holds is 412 `precondition_failed`,
+distinct from a 409 state conflict, and nothing publishes.
+
 ### Storage and Verification
 
 A namespace has at most 10000 vertices, 40000 arcs and a 12 MiB image payload;
@@ -109,5 +132,5 @@ python3 examples/walkthrough.py --workflow all
 The Python 3 walkthrough starts temporary server processes with bounded
 synthetic inputs and prints success and rejection evidence. Use
 `--workflow catalog`, `commit`, `vertex`, `lookup`, `adjacency`, `reach`,
-`path`, `components`, `pin`, `compare`, `backup` or `restart` to select one.
-Formal tests are deferred; no test runner is required.
+`path`, `components`, `precondition`, `pin`, `compare`, `backup` or `restart`
+to select one. Formal tests are deferred; no test runner is required.

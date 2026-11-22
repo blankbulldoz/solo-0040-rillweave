@@ -2,6 +2,7 @@
 
 import argparse
 from contextlib import contextmanager
+import hashlib
 import json
 from pathlib import Path
 import selectors
@@ -81,6 +82,11 @@ def put_arc(key, source, target, cost, kind="join"):
 
 def commit(base, revision, edits, status=200, code=None):
     return request(base, GRAPH + "/commit", "POST", {"base": revision, "edits": edits}, status, code)
+
+
+def commit_expect(base, revision, expect, edits, status=200, code=None):
+    body = {"base": revision, "expect": expect, "edits": edits}
+    return request(base, GRAPH + "/commit", "POST", body, status, code)
 
 
 def catalog(base, view=""):
@@ -197,6 +203,37 @@ def expect_components(base):
     return "selected kind changes strong connectivity; directed quotient link verified"
 
 
+def expect_precondition(base):
+    north = {"kind": "strut", "property": "tag", "value": "north"}
+    west = {"kind": "strut", "property": "tag", "value": "west"}
+    digest = hashlib.sha256(b"hinge").hexdigest()
+    empty = hashlib.sha256(b"").hexdigest()
+    posting = request(base, GRAPH + "/lookup", "POST", north)["result"]
+    assert posting["ids"] == ["hinge"] and posting["digest"] == digest
+    commit(base, 2, [put_vertex("keel", "mid")])
+    settled = commit_expect(base, 2, [
+        {"match": north, "digest": digest}, {"match": west, "ids": []},
+    ], [put_arc("guy", "hinge", "keel", 3)])
+    assert settled["revision"] == 4
+    commit(base, 4, [put_vertex("wing", "west")])
+    edits = [put_arc("stay", "wing", "hinge", 1)]
+    commit_expect(base, 4, [{"match": west, "ids": []}], edits, 412, "precondition_failed")
+    commit_expect(base, 5, [{"match": west, "digest": empty}], edits, 412, "precondition_failed")
+    commit(base, 4, [put_vertex("mast")], 409, "conflict")
+    settled = commit_expect(base, 5, [{"match": north, "digest": digest}], [put_vertex("mast")])
+    assert settled["revision"] == 6
+    bogus = {"kind": "strut", "property": "missing", "value": "x"}
+    commit_expect(base, 6, [{"match": bogus, "ids": []}], [put_vertex("yard")], 400, "invalid")
+    both = {"match": north, "ids": ["hinge"], "digest": digest}
+    commit_expect(base, 6, [both], [put_vertex("yard")], 400, "invalid")
+    dup = {"match": north, "ids": ["hinge", "hinge"]}
+    commit_expect(base, 6, [dup], [put_vertex("yard")], 400, "invalid")
+    commit_expect(base, 99, [{"match": north, "ids": ["hinge"]}], [put_vertex("yard")], 409, "conflict")
+    assert catalog(base)["revision"] == 6
+    return ("stale base tolerated while declared sets hold; phantom insert and stale digest "
+            "fail as precondition_failed, malformed declarations as invalid")
+
+
 def expect_pin(base):
     pin = hold(base)
     query = "?view=" + pin
@@ -255,7 +292,8 @@ def expect_restart(binary, data):
 WORKFLOWS = {
     "catalog": expect_catalog, "commit": expect_commit, "vertex": expect_vertex,
     "lookup": expect_lookup, "adjacency": expect_adjacency, "reach": expect_reach,
-    "path": expect_path, "components": expect_components, "pin": expect_pin,
+    "path": expect_path, "components": expect_components, "precondition": expect_precondition,
+    "pin": expect_pin,
     "compare": expect_compare, "backup": expect_backup, "restart": expect_restart,
 }
 

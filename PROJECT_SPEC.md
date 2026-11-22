@@ -13,7 +13,7 @@ and `spar` in the examples are synthetic.
 | --- | --- |
 | graph | Typed scalar values, identifiers, vertex and arc documents |
 | catalog | Rule definitions, endpoint compatibility and final-state uniqueness |
-| change | Private staged edit application and logical difference |
+| change | Private staged edit application, match-set preconditions and logical difference |
 | index | Deterministic adjacency and typed vertex postings |
 | walk | Graph query semantics, expansion budgets and witnesses |
 | image | Portable versioned encoding, size limit and integrity |
@@ -25,7 +25,9 @@ and `spar` in the examples are synthetic.
 ## Rules and lifecycles
 
 Graph revisions start at 1. A commit includes the expected head revision and
-a nonempty ordered edit set. Individual edits operate on a private candidate;
+a nonempty ordered edit set; declared typed match sets may accompany it and
+must hold exactly at the accepting revision, standing in for a current base.
+Individual edits operate on a private candidate;
 its final schema, vertices, arcs and unique values must agree before any
 publication. Replacing both ends of a unique value swap is allowed. Dropping a
 vertex while leaving any adjacent arc is rejected. Positive arc costs are
@@ -49,7 +51,7 @@ until restart. The instance must own its data directory exclusively.
 | Workflow | Success | Alternative or rejection |
 | --- | --- | --- |
 | catalog | Install or atomically replace typed rules; inspect a chosen view | Rule changes leaving incompatible graph state are rejected |
-| commit | Publish a final consistent graph at the next revision | Stale or invalid edits do not publish; unique swaps may apply in one revision |
+| commit | Publish a final consistent graph at the next revision | Stale or invalid edits do not publish; declared match sets that no longer hold fail as a changed precondition; unique swaps may apply in one revision |
 | vertex | Return exact contents and chosen revision | A vertex missing from that view returns not found |
 | lookup | Resolve typed equality via a vertex posting | Missing properties do not match a present value; wrong types are rejected |
 | adjacency | List directed arc identities and endpoints | Both directions include a self-loop once; mismatched kinds do not pass |

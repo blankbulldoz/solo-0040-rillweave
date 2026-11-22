@@ -5,11 +5,12 @@ import "fmt"
 type Code string
 
 const (
-	Invalid     Code = "invalid"
-	Missing     Code = "not_found"
-	Conflict    Code = "conflict"
-	Budget      Code = "budget_exhausted"
-	Unavailable Code = "unavailable"
+	Invalid      Code = "invalid"
+	Missing      Code = "not_found"
+	Conflict     Code = "conflict"
+	Precondition Code = "precondition_failed"
+	Budget       Code = "budget_exhausted"
+	Unavailable  Code = "unavailable"
 )
 
 type Problem struct {

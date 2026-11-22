@@ -6,6 +6,7 @@ import (
 
 	"rillweave/catalog"
 	"rillweave/graph"
+	"rillweave/index"
 )
 
 const MaxEdits = 2000
@@ -19,19 +20,23 @@ type Edit struct {
 }
 
 type Batch struct {
-	Base  uint64 `json:"base"`
-	Edits []Edit `json:"edits"`
+	Base   uint64        `json:"base"`
+	Edits  []Edit        `json:"edits"`
+	Expect []Expectation `json:"expect,omitempty"`
 }
 
-func Prepare(head *graph.Graph, batch Batch) (*graph.Graph, error) {
-	if batch.Base != head.Revision {
-		return nil, graph.Fail(graph.Conflict, "base %d is not current revision %d", batch.Base, head.Revision)
+func Prepare(head *graph.Graph, props *index.Postings, batch Batch) (*graph.Graph, error) {
+	if err := checkBase(head.Revision, batch); err != nil {
+		return nil, err
 	}
 	if len(batch.Edits) == 0 || len(batch.Edits) > MaxEdits {
 		return nil, graph.Fail(graph.Invalid, "a commit requires 1..%d edits", MaxEdits)
 	}
 	if head.Revision == math.MaxUint64 {
 		return nil, graph.Fail(graph.Budget, "revision space exhausted")
+	}
+	if err := verifyExpect(head, props, batch.Expect); err != nil {
+		return nil, err
 	}
 	candidate := head.Clone()
 	for n, edit := range batch.Edits {
@@ -44,6 +49,20 @@ func Prepare(head *graph.Graph, batch Batch) (*graph.Graph, error) {
 	}
 	candidate.Revision++
 	return candidate, nil
+}
+
+// checkBase requires the exact head revision unless the commit declares match
+// sets. Declared sets are verified against the accepting revision and then
+// stand in for a current base, so unrelated changes stop forcing retries; a
+// base beyond the head is never acceptable.
+func checkBase(revision uint64, batch Batch) error {
+	if len(batch.Expect) == 0 && batch.Base != revision {
+		return graph.Fail(graph.Conflict, "base %d is not current revision %d", batch.Base, revision)
+	}
+	if batch.Base > revision {
+		return graph.Fail(graph.Conflict, "base %d is beyond current revision %d", batch.Base, revision)
+	}
+	return nil
 }
 
 func apply(g *graph.Graph, e Edit) error {

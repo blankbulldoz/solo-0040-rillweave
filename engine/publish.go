@@ -40,7 +40,7 @@ func (db *Database) Commit(name string, batch change.Batch) (Summary, error) {
 	if err != nil {
 		return Summary{}, err
 	}
-	next, err := change.Prepare(head.graph, batch)
+	next, err := change.Prepare(head.graph, head.props, batch)
 	if err != nil {
 		return Summary{}, err
 	}
