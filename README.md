@@ -111,3 +111,14 @@ synthetic inputs and prints success and rejection evidence. Use
 `--workflow catalog`, `commit`, `vertex`, `lookup`, `adjacency`, `reach`,
 `path`, `components`, `pin`, `compare`, `backup` or `restart` to select one.
 Formal tests are deferred; no test runner is required.
+
+## Inference from external exports
+
+`cmd/rillweave-infer` converts externally exported vertex/arc JSON into an
+installable graph without sampling or scalar coercion. It scans every
+record once (`infer`), records per-input checksums and conflict evidence,
+then assembles a catalog-validated image from an owner-confirmed decisions
+document (`build`). Naming iterations rerun only `build`; changed inputs
+invalidate the profile digest. See
+[cmd/rillweave-infer/README.md](cmd/rillweave-infer/README.md) for the
+artifact contract and the full action list.
