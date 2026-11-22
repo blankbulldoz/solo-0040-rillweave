@@ -84,6 +84,12 @@ func (db *Database) Path(name, handle string, q walk.PathRequest) (ReadResult[wa
 	})
 }
 
+func (db *Database) Route(name, handle string, q walk.RouteRequest) (ReadResult[walk.RouteResult], error) {
+	return query(db, name, handle, func(s *state) (walk.RouteResult, error) {
+		return walk.Route(s.graph, s.adj, q)
+	})
+}
+
 func (db *Database) Components(name, handle string, q walk.ComponentsRequest) (ReadResult[walk.ComponentsResult], error) {
 	return query(db, name, handle, func(s *state) (walk.ComponentsResult, error) {
 		return walk.Components(s.graph, s.adj, q)

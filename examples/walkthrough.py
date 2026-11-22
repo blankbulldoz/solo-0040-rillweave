@@ -79,8 +79,8 @@ def put_arc(key, source, target, cost, kind="join"):
     }}
 
 
-def commit(base, revision, edits, status=200, code=None):
-    return request(base, GRAPH + "/commit", "POST", {"base": revision, "edits": edits}, status, code)
+def commit(base, revision, edits, status=200, code=None, graph=GRAPH):
+    return request(base, graph + "/commit", "POST", {"base": revision, "edits": edits}, status, code)
 
 
 def catalog(base, view=""):
@@ -184,6 +184,116 @@ def expect_path(base):
     return "hop-sensitive prefixes, parallel ties, reverse witness and budget verified"
 
 
+def expect_route(base):
+    dep_schema = {
+        "vertices": {"component": {}},
+        "arcs": {kind: {"from": "component", "to": "component"}
+                 for kind in ("upstream", "handoff", "owned")},
+    }
+    fork_schema = {
+        "vertices": {"component": {}},
+        "arcs": {kind: {"from": "component", "to": "component"}
+                 for kind in ("alpha", "beta", "gamma", "delta")},
+    }
+
+    def dep(key, source, target, cost, kind):
+        return {"op": "put_arc", "arc": {
+            "id": key, "kind": kind, "from": source, "to": target, "cost": cost,
+        }}
+
+    def component(key):
+        return {"op": "put_vertex", "vertex": {"id": key, "kind": "component"}}
+
+    def route(graph, query, status=200, code=None, view=""):
+        return request(base, graph + "/route" + view, "POST", query, status, code)
+
+    # looplane: upstream cycles guard the only handoff arc. Vertex-level
+    # detours that violate the stage pattern (o9 from the start, u8+o4 after
+    # the handoff) are cheaper than the answer and must not be reported.
+    loop = GRAPHS + "/looplane"
+    request(base, GRAPHS, "POST", {"name": "looplane", "schema": dep_schema}, 201)
+    commit(base, 1, [
+        dep("u1", "entry", "a1", 1, "upstream"), dep("u2", "a1", "a2", 1, "upstream"),
+        dep("u3", "a2", "entry", 1, "upstream"), dep("u4", "entry", "mid", 1, "upstream"),
+        dep("u5", "a2", "a1", 1, "upstream"), dep("u6", "a1", "a1", 1, "upstream"),
+        dep("u8", "b1", "b2", 1, "upstream"), dep("h1", "entry", "b1", 5, "handoff"),
+        dep("o1", "b1", "exit", 8, "owned"), dep("o2", "exit", "b1", 1, "owned"),
+        dep("o4", "b2", "exit", 1, "owned"), dep("o9", "entry", "exit", 1, "owned"),
+    ] + [component(v) for v in ("entry", "a1", "a2", "mid", "b1", "b2", "exit")], graph=loop)
+    stages = {"seq": [
+        {"plus": {"kinds": ["upstream"]}},
+        {"kinds": ["handoff"]},
+        {"plus": {"kinds": ["owned"]}},
+    ]}
+    q = {"from": "entry", "to": "exit", "max_hops": 5, "pattern": stages}
+    value = route(loop, q)["result"]
+    assert value["found"] and value["cost"] == 16, value
+    assert value["arcs"] == ["u1", "u2", "u3", "h1", "o1"], value
+    assert value["vertices"] == ["entry", "a1", "a2", "entry", "b1", "exit"], value
+    assert not route(loop, {**q, "max_hops": 4})["result"]["found"]
+    route(loop, {**q, "budget": 2}, 422, "budget_exhausted")
+    mirror = {"seq": [
+        {"plus": {"kinds": ["owned"]}},
+        {"kinds": ["handoff"]},
+        {"plus": {"kinds": ["upstream"]}},
+    ]}
+    back = route(loop, {"from": "exit", "to": "entry", "max_hops": 5,
+                        "direction": "in", "pattern": mirror})["result"]
+    assert back["arcs"] == ["o1", "h1", "u3", "u2", "u1"] and back["cost"] == 16, back
+    cycle = route(loop, {"from": "entry", "to": "entry", "max_hops": 5,
+                         "pattern": {"plus": {"kinds": ["upstream"]}}})["result"]
+    assert cycle["arcs"] == ["u1", "u2", "u3"] and cycle["cost"] == 3, cycle
+    empty = route(loop, {"from": "entry", "to": "entry", "max_hops": 5,
+                         "pattern": {"star": {"kinds": ["upstream"]}}})["result"]
+    assert empty["found"] and empty["cost"] == 0 and empty["arcs"] == [], empty
+    route(loop, {**q, "pattern": {}}, 400, "invalid")
+    route(loop, {**q, "pattern": {"kinds": ["ghost"]}}, 400, "invalid")
+
+    # forkmill: many alternation branches. Only branch shapes the pattern
+    # admits may be reported, and only after the search is truly exhaustive.
+    fork = GRAPHS + "/forkmill"
+    request(base, GRAPHS, "POST", {"name": "forkmill", "schema": fork_schema}, 201)
+    commit(base, 1, [
+        dep("a1", "root", "x1", 1, "alpha"), dep("b1", "x1", "x2", 1, "beta"),
+        dep("b2", "x2", "goal", 1, "beta"), dep("a2", "root", "x3", 1, "alpha"),
+        dep("b3", "x3", "x4", 1, "beta"), dep("a3", "root", "y1", 1, "alpha"),
+        dep("b4", "y1", "y2", 1, "beta"), dep("b5", "y2", "y1", 1, "beta"),
+        dep("g1", "root", "z1", 1, "gamma"), dep("g2", "z1", "goal", 1, "gamma"),
+        dep("g3", "root", "z2", 1, "gamma"), dep("g4", "z2", "z3", 1, "gamma"),
+        dep("g5", "z3", "goal", 1, "gamma"), dep("d1", "root", "goal", 5, "delta"),
+        dep("d2", "root", "w1", 1, "delta"), dep("d3", "w1", "w2", 1, "delta"),
+        dep("d4", "w2", "goal", 1, "delta"),
+    ] + [component(v) for v in (
+        "root", "x1", "x2", "x3", "x4", "y1", "y2", "z1", "z2", "z3", "w1", "w2", "goal")],
+        graph=fork)
+    branches = {"alt": [
+        {"seq": [{"kinds": ["alpha"]}, {"plus": {"kinds": ["beta"]}}]},
+        {"seq": [{"kinds": ["gamma"]}, {"kinds": ["gamma"]}]},
+        {"plus": {"kinds": ["delta"]}},
+    ]}
+    q = {"from": "root", "to": "goal", "max_hops": 4, "pattern": branches}
+    value = route(fork, q)["result"]
+    assert value["found"] and value["cost"] == 2 and value["arcs"] == ["g1", "g2"], value
+    short = route(fork, {**q, "max_hops": 1})["result"]
+    assert short["arcs"] == ["d1"] and short["cost"] == 5, short
+    pair = {"seq": [{"kinds": ["gamma"]}, {"kinds": ["gamma"]}]}
+    two = route(fork, {"from": "root", "to": "goal", "max_hops": 4, "pattern": pair})["result"]
+    assert two["arcs"] == ["g1", "g2"], two  # the three-gamma detour is not a match
+    qz = {"from": "root", "max_hops": 4, "pattern": pair}
+    assert not route(fork, {**qz, "to": "z2"})["result"]["found"]
+    assert route(fork, {**qz, "to": "z3"})["result"]["arcs"] == ["g3", "g4"]
+    route(fork, {**q, "budget": 3}, 422, "budget_exhausted")
+    pin = hold(base, fork)
+    no_delta = {"vertices": fork_schema["vertices"],
+                "arcs": {k: v for k, v in fork_schema["arcs"].items() if k != "delta"}}
+    commit(base, 2, [{"op": "drop_arc", "id": key} for key in ("d1", "d2", "d3", "d4")]
+           + [{"op": "set_schema", "schema": no_delta}], graph=fork)
+    route(fork, q, 400, "invalid")  # the head catalog no longer declares delta
+    pinned = route(fork, q, view="?view=" + pin)["result"]
+    assert pinned["arcs"] == ["g1", "g2"], pinned  # the pinned revision still does
+    return "stage-aware revisits, kind traps, branch choice and per-revision catalogs verified"
+
+
 def expect_components(base):
     path = GRAPH + "/components"
     value = request(base, path, "POST", {"kinds": ["join"]})["result"]
@@ -255,7 +365,7 @@ def expect_restart(binary, data):
 WORKFLOWS = {
     "catalog": expect_catalog, "commit": expect_commit, "vertex": expect_vertex,
     "lookup": expect_lookup, "adjacency": expect_adjacency, "reach": expect_reach,
-    "path": expect_path, "components": expect_components, "pin": expect_pin,
+    "path": expect_path, "route": expect_route, "components": expect_components, "pin": expect_pin,
     "compare": expect_compare, "backup": expect_backup, "restart": expect_restart,
 }
 

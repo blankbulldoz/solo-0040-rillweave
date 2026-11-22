@@ -38,6 +38,7 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | POST | `G/adjacency` | `vertex`, optional selection and `limit`; matching arcs by ID |
 | POST | `G/reach` | `root`, `max_hops`, optional selection; vertices with minimum hops |
 | POST | `G/path` | `from`, `to`, `max_hops`, optional selection; cheapest bounded path |
+| POST | `G/route` | `from`, `to`, `max_hops`, `pattern`, optional `direction` and `budget`; cheapest staged route |
 | POST | `G/components` | Optional `kinds`, `budget`; strongly connected groups and directed links |
 | POST | `G/pins` | Holds current state; returns a handle and its revision |
 | DELETE | `G/pins/{handle}` | Releases handle; in-flight reads already resolved may finish |
@@ -88,6 +89,30 @@ adjacency defaults to 100, capped at 1000. It limits returned rows, not
 matching count or budget charge. A valid no-route result is `found:false`;
 that is different from a missing endpoint or a query that ran out of budget.
 
+### Staged routes
+
+`POST G/route` returns the cheapest arc sequence whose kinds match `pattern`,
+a regular expression over arc kinds. A pattern node sets exactly one field:
+`kinds` (one arc of any listed kind), `seq` (members in order), `alt` (any one
+member), or `star`, `plus` and `opt` (repetition of one member). For example,
+`{"seq":[{"plus":{"kinds":["upstream"]}},{"kinds":["handoff"]},{"star":{"kinds":["owned"]}}]}`
+walks one or more `upstream` arcs, crosses one `handoff` arc and then follows
+any number of `owned` arcs. A pattern has at most 64 nodes, nests at most 16
+levels and compiles to at most 256 deterministic stages.
+
+Kind membership is judged against the arc catalog of the selected revision: a
+kind absent from that view's schema fails the query as invalid even if another
+revision declares it. The search state is a vertex and a pattern stage, so
+arriving at the same vertex in different stages keeps independent labels and a
+matching route may revisit vertices. `max_hops` bounds the total arc count and
+`budget` counts candidate arc inspections as elsewhere; exhaustion is an
+error, never a negative result. The cheapest match wins, with ties preferring
+fewer arcs then the lexicographically smallest arc ID sequence. The returned
+`vertices` and `arcs` replay from `from` under the same revision and
+direction: each arc's kind is accepted by the pattern stage it was matched at,
+and the sequence ends at `to` in an accepting stage. `found:false` means no
+route within the hop limit matches; that is distinct from budget exhaustion.
+
 ### Storage and Verification
 
 A namespace has at most 10000 vertices, 40000 arcs and a 12 MiB image payload;
@@ -109,5 +134,6 @@ python3 examples/walkthrough.py --workflow all
 The Python 3 walkthrough starts temporary server processes with bounded
 synthetic inputs and prints success and rejection evidence. Use
 `--workflow catalog`, `commit`, `vertex`, `lookup`, `adjacency`, `reach`,
-`path`, `components`, `pin`, `compare`, `backup` or `restart` to select one.
+`path`, `route`, `components`, `pin`, `compare`, `backup` or `restart` to
+select one.
 Formal tests are deferred; no test runner is required.
