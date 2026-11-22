@@ -215,7 +215,56 @@ def expect_compare(base):
     assert value["vertices"]["updated"] == ["keel"] and value["arcs"]["removed"] == ["brace-alt"]
     request(base, GRAPHS, "POST", {"name": "pier", "schema": SCHEMA}, 201)
     request(base, GRAPH + "/compare", "POST", {"from": hold(base, GRAPHS + "/pier")}, 404, "not_found")
-    return "logical changes have correct identity and direction; foreign handle rejected"
+
+    contracts = GRAPH + "/compare/contracts"
+    registry = [
+        {"id": "tag-north", "vertex": {"kind": "strut", "property": "tag", "value": "north",
+                                       "requires": ["unique"]}},
+        {"id": "tag-mid", "vertex": {"kind": "strut", "property": "tag", "value": "mid"}},
+        {"id": "tag-mid-fan", "vertex": {"kind": "strut", "property": "tag", "value": "mid"}},
+        {"id": "join", "arc": {"kind": "join", "from": "strut", "to": "strut"}},
+    ]
+    audit = request(base, contracts, "POST", {"from": pin, "witness_limit": 1,
+                                              "contracts": registry})
+    assert (audit["from"], audit["to"]) == (2, 3) and audit["from_handle"] == pin
+    rows = {row["id"]: row for row in audit["contracts"]}
+    assert rows["tag-north"]["status"] == "unaffected"
+    assert rows["tag-mid"]["status"] == "changed"
+    assert rows["tag-mid"]["matches"]["added"] == ["keel"]
+    assert rows["tag-mid"]["matches"]["from_total"] == 0 and rows["tag-mid"]["matches"]["to_total"] == 1
+    assert rows["tag-mid"]["witnesses"]["added"][0]["vertex"]["properties"]["tag"] == "mid"
+    assert rows["join"]["matches"]["removed"] == ["brace-alt"]
+    assert rows["join"]["witnesses"]["removed"][0]["arc"]["id"] == "brace-alt"
+    assert audit["summary"]["unaffected"] == 1 and audit["summary"]["changed"] == 3
+    assert audit["summary"]["evaluated_conditions"] == 3 and audit["summary"]["shared_registrations"] == 1
+
+    combined = request(base, GRAPH + "/compare", "POST", {"from": pin, "contracts": registry})
+    assert set(combined) == {"from", "to", "vertices", "arcs", "schema_changed", "contract_audit"}
+    assert combined["arcs"]["removed"] == ["brace-alt"]
+    assert combined["contract_audit"]["contracts"][1]["status"] == "changed"
+
+    extended = {
+        **SCHEMA,
+        "vertices": {**SCHEMA["vertices"], "sill": {}},
+        "arcs": {**SCHEMA["arcs"], "tie": {"from": "strut", "to": "strut"}},
+    }
+    commit(base, 3, [{"op": "set_schema", "schema": extended}])
+    retarget_pin = hold(base)
+    retargeted = {**extended, "arcs": {**extended["arcs"], "tie": {"from": "strut", "to": "sill"}}}
+    commit(base, 4, [{"op": "set_schema", "schema": retargeted}])
+    stale = request(base, contracts, "POST", {"witness_limit": 1, "from": retarget_pin, "contracts": [
+        {"id": "tie", "arc": {"kind": "tie", "from": "strut", "to": "strut"}},
+        {"id": "join", "arc": {"kind": "join", "from": "strut", "to": "strut"}},
+    ]})
+    assert (stale["from"], stale["to"]) == (4, 5)
+    tie, join = stale["contracts"]
+    assert tie["status"] == "inapplicable" and "sill" in tie["reason"]
+    assert join["status"] == "unaffected" and join["matches"]["added"] == []
+    request(base, contracts, "POST", {"from": retarget_pin, "contracts": [
+        {"id": "absent", "vertex": {"kind": "strut", "property": "missing", "value": "x"}},
+    ]}, 400, "invalid")
+    return ("identity difference and registered read contracts verified; "
+            "stale arc endpoint registration is inapplicable, not silently retained")
 
 
 def expect_backup(base):

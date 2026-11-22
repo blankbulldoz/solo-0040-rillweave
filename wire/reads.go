@@ -1,6 +1,10 @@
 package wire
 
-import "net/http"
+import (
+	"net/http"
+
+	"rillweave/engine"
+)
 
 func reading[Q, R any](read func(string, string, Q) (R, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -25,15 +29,22 @@ func (s service) vertex(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s service) compare(w http.ResponseWriter, r *http.Request) {
-	var q struct {
-		From string `json:"from,omitempty"`
-		To   string `json:"to,omitempty"`
-	}
+	var q engine.ContractRequest
 	if err := decode(w, r, &q, maxRequest); err != nil {
 		result(w, nil, err, 0)
 		return
 	}
-	value, err := s.db.Comparison(r.PathValue("name"), q.From, q.To)
+	value, err := s.db.ComparisonWithContracts(r.PathValue("name"), q)
+	result(w, value, err, http.StatusOK)
+}
+
+func (s service) contracts(w http.ResponseWriter, r *http.Request) {
+	var q engine.ContractRequest
+	if err := decode(w, r, &q, maxRequest); err != nil {
+		result(w, nil, err, 0)
+		return
+	}
+	value, err := s.db.ContractComparison(r.PathValue("name"), q)
 	result(w, value, err, http.StatusOK)
 }
 

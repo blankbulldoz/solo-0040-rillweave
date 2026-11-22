@@ -58,6 +58,8 @@ until restart. The instance must own its data directory exclusively.
 | components | Return strongly connected components and directed links between groups | Weak connectivity and parallel arcs do not merge or multiply component links |
 | pin | Hold and query a fixed revision, then release it | A handle from another graph, an exhausted quota or a released handle is rejected |
 | compare | Compare two views of the same graph by entity identity and schema change | A foreign handle cannot participate |
+| compare/contracts | Audit registered typed point queries and arc-endpoint selections across two pinned views | A registration the older view cannot serve, or a newer view that stops serving it, is called out rather than assumed unchanged |
+| compare with contracts | Attach the same audit to the identity difference | The identity difference stays exactly as before when no contracts are registered |
 | backup | Export one selected revision and import it under an unused name | Malformed images and occupied names do not overwrite existing state |
 | restart | Reopen durable graphs and reconstruct indexes | Full corruption fails startup; ephemeral view handles are not recovered |
 

@@ -29,6 +29,14 @@ func Compare(from, to *graph.Graph) Difference {
 	}
 }
 
+// ComparisonAudit is the identity difference plus, when the caller registered
+// read contracts, the contract audit. With no registrations it encodes to the
+// same object as Difference, so existing compare consumers are unaffected.
+type ComparisonAudit struct {
+	Difference
+	ContractAudit *ContractComparison `json:"contract_audit,omitempty"`
+}
+
 func diff[V any](from, to map[string]V, equal func(V, V) bool) Entities {
 	result := Entities{Added: []string{}, Removed: []string{}, Updated: []string{}}
 	for _, id := range graph.Keys(to) {

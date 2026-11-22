@@ -61,6 +61,51 @@ func (db *Database) Comparison(name, fromHandle, toHandle string) (change.Differ
 	return change.Compare(from.graph, to.graph), nil
 }
 
+type ContractRequest struct {
+	From         string                `json:"from,omitempty"`
+	To           string                `json:"to,omitempty"`
+	WitnessLimit int                   `json:"witness_limit,omitempty"`
+	Contracts    []change.ReadContract `json:"contracts"`
+}
+
+// ContractComparison resolves both pins before auditing any registered read
+// condition, so every conclusion carries the two revisions it was drawn from.
+func (db *Database) ContractComparison(name string, q ContractRequest) (change.ContractComparison, error) {
+	from, to, err := db.pair(name, q.From, q.To)
+	if err != nil {
+		return change.ContractComparison{}, err
+	}
+	result, err := change.CompareContracts(from.graph, to.graph, q.Contracts, q.WitnessLimit)
+	if err != nil {
+		return change.ContractComparison{}, err
+	}
+	result.FromHandle, result.ToHandle = q.From, q.To
+	return result, nil
+}
+
+// ComparisonWithContracts keeps the identity difference of Comparison and adds
+// the registered read-contract audit. Without contracts it is exactly
+// Comparison, so existing compare requests and responses are unchanged.
+func (db *Database) ComparisonWithContracts(name string, q ContractRequest) (change.ComparisonAudit, error) {
+	if q.Contracts == nil {
+		difference, err := db.Comparison(name, q.From, q.To)
+		return change.ComparisonAudit{Difference: difference}, err
+	}
+	from, to, err := db.pair(name, q.From, q.To)
+	if err != nil {
+		return change.ComparisonAudit{}, err
+	}
+	contracts, err := change.CompareContracts(from.graph, to.graph, q.Contracts, q.WitnessLimit)
+	if err != nil {
+		return change.ComparisonAudit{}, err
+	}
+	contracts.FromHandle, contracts.ToHandle = q.From, q.To
+	return change.ComparisonAudit{
+		Difference:    change.Compare(from.graph, to.graph),
+		ContractAudit: &contracts,
+	}, nil
+}
+
 func (db *Database) pair(name, fromHandle, toHandle string) (*state, *state, error) {
 	db.mu.RLock()
 	defer db.mu.RUnlock()

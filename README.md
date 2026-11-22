@@ -42,6 +42,7 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | POST | `G/pins` | Holds current state; returns a handle and its revision |
 | DELETE | `G/pins/{handle}` | Releases handle; in-flight reads already resolved may finish |
 | POST | `G/compare` | `from` and `to` handles (empty means head); identity-based difference |
+| POST | `G/compare/contracts` | Same pin pair plus registered read contracts; per-contract disposition, full match movement and bounded witnesses |
 | GET | `G/image` | Format, SHA-256 digest and base64 payload for the chosen revision |
 | PUT | `G/image` | Image envelope; installs a new graph at 1 and returns source and installed summaries |
 
@@ -87,6 +88,50 @@ uses 300000; exhaustion rejects the whole query. `limit` for lookup and
 adjacency defaults to 100, capped at 1000. It limits returned rows, not
 matching count or budget charge. A valid no-route result is `found:false`;
 that is different from a missing endpoint or a query that ran out of budget.
+
+### Registered read contracts
+
+`POST G/compare` still explains identity changes. Add an optional `contracts`
+list (plus `witness_limit`) and the same call also audits registered read
+conditions; the identity difference is returned as before and the audit
+appears under `contract_audit`. Without `contracts` the response is exactly
+the existing compare object. `POST G/compare/contracts` serves the same audit
+on its own.
+
+Either way the body takes the `from`/`to` handles (empty means head), optional
+`witness_limit` in [1,50] (default 5) and 1..256 `contracts`. Each contract
+has a unique `id` and exactly one selector:
+
+- `{"vertex":{"kind":"strut","property":"tag","value":"north",
+  "requires":["required","unique"]}}` is a typed-equality point query.
+  `requires` names guarantees the consumer reads through; each must already
+  hold on the old revision.
+- `{"arc":{"kind":"join","from":"strut","to":"strut"}}` selects original arcs
+  by arc kind and the expected kinds of their start and end vertices.
+
+Registration is checked against the older revision: it must be executable
+there (declared kind and property, matching scalar type, existing guarantee,
+matching arc endpoint rule) or the whole request is `400 invalid`. The audit
+repeats `from`/`to` revisions and the handles used, so a conclusion is bound
+to its pin pair. Per contract:
+
+- `inapplicable` with `reason`: the newer revision cannot execute the
+  original condition, because the kind/property or its scalar type is gone or
+  the arc kind's registered endpoint kinds changed. No match data is reported.
+- `changed`: still executable. `matches` lists complete added and removed
+  match IDs with `from_total`/`to_total`; `guarantees` lists every `required`
+  or `unique` guarantee the registration depends on whose value changed and
+  whether it was `lost`.
+- `unaffected`: no guarantee movement and no match movement.
+
+`matches` is computed from the full revisions, never from a `limit`-truncated
+lookup or adjacency window. `witnesses` samples at most `witness_limit`
+original vertex or arc records per direction for spot checks, with explicit
+`added_truncated`/`removed_truncated` flags; the complete identity movement
+stays in `matches`. `summary` counts dispositions and reports
+`evaluated_conditions` and `shared_registrations`, so many contracts naming
+the same property or arc kind are evaluated once rather than per consumer.
+Unrelated writes elsewhere in the graph leave a contract unaffected.
 
 ### Storage and Verification
 
