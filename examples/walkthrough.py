@@ -197,6 +197,107 @@ def expect_components(base):
     return "selected kind changes strong connectivity; directed quotient link verified"
 
 
+def triad_query(extra=None):
+    body = {
+        "vertices": {
+            "a": {"kind": "strut", "properties": {"tag": "north"}},
+            "b": {"kind": "strut"},
+            "c": {"kind": "strut", "properties": {"tag": "south"}},
+        },
+        "edges": [
+            {"kind": "join", "from": "a", "to": "b"},
+            {"kind": "join", "from": "b", "to": "c"},
+            {"kind": "join", "from": "c", "to": "a"},
+        ],
+    }
+    if extra:
+        body.update(extra)
+    return request(base_ref[0], GRAPH + "/triads", "POST", body)
+
+
+base_ref = [None]
+
+
+def expect_triad(base):
+    base_ref[0] = base
+    path = GRAPH + "/triads"
+    value = triad_query()["result"]
+    # hinge(a) and spar(c) are pinned; b can be hinge (loop + brace family)
+    # or keel (bypass + cross + return); parallel brace arcs stay distinct.
+    assert value["matched"] == 3 and value["exhaustive"] and not value["truncated"]
+    keys = [(row["vertices"]["b"], tuple(row["arcs"][k] for k in ("e1", "e2", "e3")))
+            for row in value["rows"]]
+    assert keys == sorted(keys), "rows must follow the stable vertex/arc order"
+    arc_identities = {arc for row in value["rows"] for arc in row["arcs"].values()}
+    assert {"brace", "brace-alt"} <= arc_identities
+    for row in value["rows"]:
+        ids = list(row["arcs"].values())
+        assert len(ids) == len(set(ids)), "one arc cannot witness two edge variables"
+
+    # A reversed closing edge interprets the stored arc in the inverse sense.
+    reversed_query = {
+        "vertices": {
+            "a": {"kind": "strut", "properties": {"tag": "north"}},
+            "b": {"kind": "strut", "properties": {"tag": "south"}},
+            "c": {"kind": "strut"},
+        },
+        "edges": [
+            {"kind": "join", "from": "a", "to": "b"},
+            {"kind": "join", "from": "b", "to": "c"},
+            {"kind": "join", "from": "c", "to": "a", "direction": "in"},
+        ],
+    }
+    assert request(base, path, "POST", reversed_query)["result"]["matched"] == 2
+
+    # A sparse closing arc kind seeds an edge-rooted plan with few scans.
+    sparse = {
+        "vertices": {slot: {"kind": "strut"} for slot in ("a", "b", "c")},
+        "edges": [
+            {"kind": "join", "from": "a", "to": "b"},
+            {"kind": "join", "from": "b", "to": "c"},
+            {"kind": "guide", "from": "c", "to": "a"},
+        ],
+    }
+    sparse_result = request(base, path, "POST", sparse)["result"]
+    assert sparse_result["matched"] == 2
+    assert all(row["arcs"]["e3"] == "track" for row in sparse_result["rows"])
+    assert sparse_result["scanned"] < 30
+
+    # Limit windows the rows but keeps the exact match count.
+    windowed = triad_query({"limit": 1})["result"]
+    assert len(windowed["rows"]) == 1 and windowed["truncated"] and windowed["matched"] == 3
+
+    # A tiny budget rejects a wide fan-out, yet the same budget still answers
+    # the tightly constrained query because the planner picks the small seed.
+    request(base, path, "POST", {**sparse, "budget": 1}, 422, "budget_exhausted")
+    affordable = triad_query({"budget": 40})["result"]
+    assert affordable["exhaustive"] and affordable["matched"] == 3
+
+    # Typed equality keeps missing-property and wrong-type semantics.
+    empty_tag = {
+        "vertices": {
+            "a": {"kind": "strut", "properties": {"tag": ""}},
+            "b": {"kind": "strut"}, "c": {"kind": "strut"},
+        },
+        "edges": [
+            {"kind": "join", "from": "a", "to": "b"},
+            {"kind": "join", "from": "b", "to": "c"},
+            {"kind": "join", "from": "c", "to": "a"},
+        ],
+    }
+    assert request(base, path, "POST", empty_tag)["result"]["matched"] == 0
+    bad_type = json.loads(json.dumps(empty_tag))
+    bad_type["vertices"]["a"]["properties"]["tag"] = True
+    request(base, path, "POST", bad_type, 400, "invalid")
+    bad_kind = json.loads(json.dumps(sparse))
+    bad_kind["edges"][0]["kind"] = "unknown"
+    request(base, path, "POST", bad_kind, 400, "invalid")
+    bad_shape = {"vertices": {"a": {"kind": "strut"}, "b": {"kind": "strut"}}, "edges": sparse["edges"]}
+    request(base, path, "POST", bad_shape, 400, "invalid")
+    return "triangle binds three vertices and directed arcs; parallel arcs distinct, reuse blocked, plan stays bounded"
+
+
+
 def expect_pin(base):
     pin = hold(base)
     query = "?view=" + pin
@@ -255,7 +356,8 @@ def expect_restart(binary, data):
 WORKFLOWS = {
     "catalog": expect_catalog, "commit": expect_commit, "vertex": expect_vertex,
     "lookup": expect_lookup, "adjacency": expect_adjacency, "reach": expect_reach,
-    "path": expect_path, "components": expect_components, "pin": expect_pin,
+    "path": expect_path, "components": expect_components, "triad": expect_triad,
+    "pin": expect_pin,
     "compare": expect_compare, "backup": expect_backup, "restart": expect_restart,
 }
 

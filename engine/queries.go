@@ -89,3 +89,9 @@ func (db *Database) Components(name, handle string, q walk.ComponentsRequest) (R
 		return walk.Components(s.graph, s.adj, q)
 	})
 }
+
+func (db *Database) Triad(name, handle string, q walk.TriadRequest) (ReadResult[walk.TriadResult], error) {
+	return query(db, name, handle, func(s *state) (walk.TriadResult, error) {
+		return walk.Triad(s.graph, s.adj, s.props, q)
+	})
+}

@@ -39,6 +39,7 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | POST | `G/reach` | `root`, `max_hops`, optional selection; vertices with minimum hops |
 | POST | `G/path` | `from`, `to`, `max_hops`, optional selection; cheapest bounded path |
 | POST | `G/components` | Optional `kinds`, `budget`; strongly connected groups and directed links |
+| POST | `G/triads` | Three vertex variables and three directed edges; bounded triangle witnesses |
 | POST | `G/pins` | Holds current state; returns a handle and its revision |
 | DELETE | `G/pins/{handle}` | Releases handle; in-flight reads already resolved may finish |
 | POST | `G/compare` | `from` and `to` handles (empty means head); identity-based difference |
@@ -88,6 +89,49 @@ adjacency defaults to 100, capped at 1000. It limits returned rows, not
 matching count or budget charge. A valid no-route result is `found:false`;
 that is different from a missing endpoint or a query that ran out of budget.
 
+### Triangle motifs
+
+`POST G/triads` binds three vertex variables (`a`, `b`, `c`) and three
+directed edge variables in one fixed view, so a closed three-node relation is
+resolved server-side instead of by stitching adjacency results on the client.
+Each vertex entry gives a `kind` plus any number of typed property-equality
+predicates (all must hold); missing properties never match a present value and
+a wrong scalar type is rejected. Each edge names an arc `kind`, its `from` and
+`to` vertex variables, and an optional `direction` of `out` (default) or `in`.
+The three edges must use the three distinct unordered endpoint pairs, so the
+pattern is one closed triangle; variables may still bind the same vertex when
+a self-loop supports it.
+
+```json
+{
+  "vertices": {
+    "a": {"kind": "strut", "properties": {"tag": "north"}},
+    "b": {"kind": "strut"},
+    "c": {"kind": "strut", "properties": {"tag": "south"}}
+  },
+  "edges": [
+    {"kind": "join", "from": "a", "to": "b"},
+    {"kind": "join", "from": "b", "to": "c"},
+    {"kind": "join", "from": "c", "to": "a", "direction": "in"}
+  ],
+  "limit": 100,
+  "budget": 300000
+}
+```
+
+Parallel arcs keep separate identities and each becomes its own witness row;
+within one row a stored arc cannot be reused to fill two edge variables. Rows
+are sorted by the three vertex IDs and then the three arc IDs (`e1`, `e2`,
+`e3`) in fixed slot order. `matched` counts every complete witness while
+`rows` is the bounded window; `truncated` reports the window and `exhaustive`
+reports that the search completed within budget. The planner estimates both a
+vertex-rooted and an edge-rooted order and chooses the cheaper, so a sparse
+vertex condition or a rare closing arc kind seeds the search even when another
+condition alone would fan out across the graph. Budget exhaustion still
+returns `422 budget_exhausted` rather than a partial-looking answer. The read
+accepts `?view={handle}` like the other queries.
+
+
 ### Storage and Verification
 
 A namespace has at most 10000 vertices, 40000 arcs and a 12 MiB image payload;
@@ -109,5 +153,5 @@ python3 examples/walkthrough.py --workflow all
 The Python 3 walkthrough starts temporary server processes with bounded
 synthetic inputs and prints success and rejection evidence. Use
 `--workflow catalog`, `commit`, `vertex`, `lookup`, `adjacency`, `reach`,
-`path`, `components`, `pin`, `compare`, `backup` or `restart` to select one.
-Formal tests are deferred; no test runner is required.
+`path`, `components`, `triad`, `pin`, `compare`, `backup` or `restart` to
+select one. Formal tests are deferred; no test runner is required.

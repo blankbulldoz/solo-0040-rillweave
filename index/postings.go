@@ -36,3 +36,11 @@ func (p *Postings) Equal(kind, property string, value graph.Scalar, limit int) P
 		Matched: len(ids), Truncated: len(ids) > limit,
 	}
 }
+
+// Matches resolves the full typed posting without an output window. The
+// returned slice is owned by the caller; missing properties simply never
+// appear in a posting, so they cannot match a present value.
+func (p *Postings) Matches(kind, property string, value graph.Scalar) []string {
+	ids := p.values[postingKey{kind, property, value}]
+	return append([]string{}, ids...)
+}

@@ -11,21 +11,30 @@ const (
 )
 
 type Adjacency struct {
-	out map[string][]graph.Arc
-	in  map[string][]graph.Arc
+	out    map[string][]graph.Arc
+	in     map[string][]graph.Arc
+	byKind map[string][]graph.Arc
 }
 
 func BuildAdjacency(g *graph.Graph) *Adjacency {
 	a := &Adjacency{
-		out: make(map[string][]graph.Arc),
-		in:  make(map[string][]graph.Arc),
+		out:    make(map[string][]graph.Arc),
+		in:     make(map[string][]graph.Arc),
+		byKind: make(map[string][]graph.Arc),
 	}
 	for _, id := range graph.Keys(g.Arcs) {
 		edge := g.Arcs[id]
 		a.out[edge.From] = append(a.out[edge.From], edge)
 		a.in[edge.To] = append(a.in[edge.To], edge)
+		a.byKind[edge.Kind] = append(a.byKind[edge.Kind], edge)
 	}
 	return a
+}
+
+// ArcsOfKind lists every arc of the given kind in ascending arc ID order.
+// Parallel arcs keep their individual identities.
+func (a *Adjacency) ArcsOfKind(kind string) []graph.Arc {
+	return a.byKind[kind]
 }
 
 // Visit enumerates candidate arcs by ID. A loop occupies the head of both
