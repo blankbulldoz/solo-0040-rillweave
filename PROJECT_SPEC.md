@@ -51,7 +51,7 @@ until restart. The instance must own its data directory exclusively.
 | catalog | Install or atomically replace typed rules; inspect a chosen view | Rule changes leaving incompatible graph state are rejected |
 | commit | Publish a final consistent graph at the next revision | Stale or invalid edits do not publish; unique swaps may apply in one revision |
 | vertex | Return exact contents and chosen revision | A vertex missing from that view returns not found |
-| lookup | Resolve typed equality via a vertex posting | Missing properties do not match a present value; wrong types are rejected |
+| lookup | Resolve typed equality via a vertex posting, or combine up to 32 typed equalities with union, intersection and set difference on one read view | Missing properties do not match a present value; wrong types are rejected for every condition before evaluation |
 | adjacency | List directed arc identities and endpoints | Both directions include a self-loop once; mismatched kinds do not pass |
 | reach | Return minimum hop distances, including the selected root | Insufficient expansion budget returns an error, never a complete-looking prefix |
 | path | Return least total cost within the hop limit and the witnessing arcs | No route within the chosen subgraph is distinct from budget exhaustion |
@@ -68,7 +68,11 @@ bounded walkthrough against a temporary database. Formal tests are deferred.
 ## Boundaries
 
 The engine is designed for bounded local graphs. It clones the candidate and
-rebuilds indexes per commit. It does not claim distributed replication, online
-index building, arbitrary query languages, authentication, multi-graph atomic
-commits or durable revision history. The image digest establishes byte
-integrity, not authenticity. Run the service only in a trusted environment.
+rebuilds indexes per commit. A composite lookup keeps only two dense vertex
+bitmaps as temporary state, bounded to 128 KiB per evaluation regardless of
+how many of the 32 conditions it combines; the decoded request and encoded
+response are not charged against that allowance. It does not claim
+distributed replication, online index building, arbitrary query languages,
+authentication, multi-graph atomic commits or durable revision history. The
+image digest establishes byte integrity, not authenticity. Run the service
+only in a trusted environment.

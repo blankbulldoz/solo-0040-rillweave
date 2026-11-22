@@ -35,6 +35,7 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | POST | `G/commit` | `{"base":1,"edits":[...]}`; new head summary |
 | GET | `G/vertices/{id}` | One vertex in the selected revision |
 | POST | `G/lookup` | `kind`, `property`, `value`, optional `limit`; IDs and exact count |
+| POST | `G/lookup/combined` | `terms` of up to 32 typed equalities joined by union/intersect/subtract, optional `limit`; deduplicated IDs and exact count |
 | POST | `G/adjacency` | `vertex`, optional selection and `limit`; matching arcs by ID |
 | POST | `G/reach` | `root`, `max_hops`, optional selection; vertices with minimum hops |
 | POST | `G/path` | `from`, `to`, `max_hops`, optional selection; cheapest bounded path |
@@ -87,6 +88,41 @@ uses 300000; exhaustion rejects the whole query. `limit` for lookup and
 adjacency defaults to 100, capped at 1000. It limits returned rows, not
 matching count or budget charge. A valid no-route result is `found:false`;
 that is different from a missing endpoint or a query that ran out of budget.
+
+### Composite lookup
+
+`POST G/lookup/combined` combines up to 32 typed equality conditions on one
+read view, so callers do not need repeated single-condition lookups whose
+truncated windows could drop vertices. The request is a left-associative
+chain: the first term seeds the working set and every later term names an
+`op` of `union`, `intersect` or `subtract`. Each term is a `kind`,
+`property` and typed `value`, exactly like the single-condition lookup.
+
+```json
+{
+  "terms": [
+    {"kind": "strut", "property": "tag", "value": "north"},
+    {"kind": "strut", "property": "tier", "value": 7, "op": "intersect"},
+    {"kind": "brace", "property": "retired", "value": true, "op": "subtract"}
+  ],
+  "limit": 100
+}
+```
+
+Every condition is validated against the catalog before any posting is read.
+The same property name may carry different scalar kinds on different vertex
+kinds; each condition is checked against its own kind. Validation is
+all-or-nothing: an illegal condition is rejected with 400 even when an
+earlier subtraction has already made the running set empty. Missing
+properties never enter a posting, so a vertex without the property does not
+match any value, including empty text. Results deduplicate by vertex
+identity and return the exact `matched` total together with the same ID
+window and `truncated` flag as the single-condition lookup. A single
+evaluation keeps at most 128 KiB of temporary bitmap memory (the request and
+response are counted separately); a graph whose bitmap working set would
+exceed that fails with 422 rather than allocating past the bound. The legacy
+`G/lookup` request shape and pinned `?view=` handles are unchanged, and the
+composite endpoint accepts the same view handles.
 
 ### Storage and Verification
 

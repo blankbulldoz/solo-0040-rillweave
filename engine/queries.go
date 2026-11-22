@@ -66,6 +66,26 @@ func (db *Database) Lookup(name, handle string, q LookupRequest) (ReadResult[ind
 	})
 }
 
+// LookupCombinedRequest composes up to 32 typed equality conditions with
+// union, intersection and set difference on one immutable read view.
+type LookupCombinedRequest struct {
+	Terms []index.Term `json:"terms"`
+	Limit int          `json:"limit,omitempty"`
+}
+
+func (db *Database) LookupCombined(name, handle string, q LookupCombinedRequest) (ReadResult[index.Posting], error) {
+	return query(db, name, handle, func(s *state) (index.Posting, error) {
+		if err := catalog.LookupPlan(s.graph.Schema, q.Terms); err != nil {
+			return index.Posting{}, err
+		}
+		limit, err := walk.Limit(q.Limit)
+		if err != nil {
+			return index.Posting{}, err
+		}
+		return s.props.Combine(q.Terms, limit)
+	})
+}
+
 func (db *Database) Adjacent(name, handle string, q walk.AdjacentRequest) (ReadResult[walk.AdjacentResult], error) {
 	return query(db, name, handle, func(s *state) (walk.AdjacentResult, error) {
 		return walk.Adjacent(s.graph, s.adj, q)

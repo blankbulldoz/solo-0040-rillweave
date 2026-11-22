@@ -146,7 +146,27 @@ def expect_lookup(base):
     assert request(base, path, "POST", q)["result"]["ids"] == ["hinge"]
     assert request(base, path, "POST", {**q, "value": ""})["result"]["matched"] == 0
     request(base, path, "POST", {**q, "value": False}, 400, "invalid")
-    return "typed posting correct; absent tag is not empty text"
+
+    combined = GRAPH + "/lookup/combined"
+    north = {"kind": "strut", "property": "tag", "value": "north"}
+    south = {"kind": "strut", "property": "tag", "value": "south"}
+    value = request(base, combined, "POST", {"terms": [
+        north, {**south, "op": "union"},
+    ]})["result"]
+    assert value["ids"] == ["hinge", "spar"] and value["matched"] == 2
+    value = request(base, combined, "POST", {"terms": [
+        north, {**south, "op": "subtract"},
+    ]})["result"]
+    assert value["ids"] == ["hinge"] and value["matched"] == 1
+    # An illegal right-hand condition is rejected even though the left side
+    # has already been subtracted down to an empty set.
+    request(base, combined, "POST", {"terms": [
+        north, {**north, "op": "subtract"},
+        {"kind": "strut", "property": "tag", "value": 3, "op": "subtract"},
+    ]}, 400, "invalid")
+    request(base, combined, "POST", {"terms": []}, 400, "invalid")
+    request(base, combined, "POST", {"terms": [north, south]}, 400, "invalid")
+    return "typed posting correct; absent tag is not empty text; composite union, difference and all-term validation verified"
 
 
 def expect_adjacency(base):

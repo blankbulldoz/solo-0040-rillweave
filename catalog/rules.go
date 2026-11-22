@@ -1,6 +1,9 @@
 package catalog
 
-import "rillweave/graph"
+import (
+	"rillweave/graph"
+	"rillweave/index"
+)
 
 func Rules(s graph.Schema) error {
 	if len(s.Vertices) == 0 || len(s.Vertices) > graph.MaxRules || len(s.Arcs) > graph.MaxRules {
@@ -59,6 +62,33 @@ func LookupRule(s graph.Schema, kind, property string, value graph.Scalar) error
 	}
 	if field.Kind != value.Kind || !value.Valid() {
 		return graph.Fail(graph.Invalid, "property %q requires %s", property, field.Kind)
+	}
+	return nil
+}
+
+// LookupPlan validates every condition and set operation before any posting
+// is read. The same property name may carry different scalar kinds on
+// different vertex kinds; each condition is checked against its own kind's
+// catalog. Validation is all-or-nothing: an illegal right-hand term is
+// rejected even when an earlier subtraction has already made the running set
+// empty, so callers cannot bypass type rules through query shape.
+func LookupPlan(s graph.Schema, terms []index.Term) error {
+	if len(terms) == 0 {
+		return graph.Fail(graph.Invalid, "a composite lookup requires 1..%d conditions", index.MaxLookupConditions)
+	}
+	if len(terms) > index.MaxLookupConditions {
+		return graph.Fail(graph.Invalid, "a composite lookup accepts at most %d conditions", index.MaxLookupConditions)
+	}
+	for i, term := range terms {
+		if term.Op != "" && !term.Op.Valid() {
+			return graph.Fail(graph.Invalid, "condition %d requires op union, intersect or subtract", i+1)
+		}
+		if i > 0 && term.Op == "" {
+			return graph.Fail(graph.Invalid, "condition %d requires op union, intersect or subtract", i+1)
+		}
+		if err := LookupRule(s, term.Kind, term.Property, term.Value); err != nil {
+			return graph.Fail(graph.Invalid, "condition %d: %v", i+1, err)
+		}
 	}
 	return nil
 }
