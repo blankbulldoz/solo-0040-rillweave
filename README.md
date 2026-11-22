@@ -39,6 +39,7 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | POST | `G/reach` | `root`, `max_hops`, optional selection; vertices with minimum hops |
 | POST | `G/path` | `from`, `to`, `max_hops`, optional selection; cheapest bounded path |
 | POST | `G/components` | Optional `kinds`, `budget`; strongly connected groups and directed links |
+| POST | `G/inventory` | Endpoint kinds, shared property and arc kind; bounded page of missing directed arcs |
 | POST | `G/pins` | Holds current state; returns a handle and its revision |
 | DELETE | `G/pins/{handle}` | Releases handle; in-flight reads already resolved may finish |
 | POST | `G/compare` | `from` and `to` handles (empty means head); identity-based difference |
@@ -88,6 +89,29 @@ adjacency defaults to 100, capped at 1000. It limits returned rows, not
 matching count or budget charge. A valid no-route result is `found:false`;
 that is different from a missing endpoint or a query that ran out of budget.
 
+### Dependency inventory
+
+`POST G/inventory` audits which registered same-value pairs lack a required
+directed arc. The request gives `from_kind`, `to_kind`, `property`,
+`arc_kind`, optional `limit` (default 100, capped at 1000), `budget`
+(default 300000) and an opaque `cursor`. Pairs exist only between vertices of
+the two endpoint kinds that both carry the same property value: a value
+registered on just one side cannot pair, and a missing property never claims
+a value. An optional `value` only supplies the scalar kind for schema
+validation; the audit covers every shared value, never coerces types and the
+declared arc kind must connect the two endpoint kinds.
+
+A pair is covered only by an arc of `arc_kind` going from the `from` record to
+the `to` record. Reverse arcs, other arc kinds and parallel arcs do not change
+the answer; each surviving gap returns both original vertex records. The scan
+walks shared-value cohorts in deterministic value order without materializing
+the Cartesian product. Each page reports `gaps`, `matched`, `scanned`,
+`truncated`, `complete` and, when more pairs remain, a `cursor`. A page is
+`complete` only after every pair has been inspected; a budget or limit stop
+keeps the boundary in `cursor`, so an unfinished page never reads as "no
+gaps". The cursor is bound to the revision that issued it and a changed head
+rejects it with 409; hold a pin to page through a fixed view.
+
 ### Storage and Verification
 
 A namespace has at most 10000 vertices, 40000 arcs and a 12 MiB image payload;
@@ -109,5 +133,6 @@ python3 examples/walkthrough.py --workflow all
 The Python 3 walkthrough starts temporary server processes with bounded
 synthetic inputs and prints success and rejection evidence. Use
 `--workflow catalog`, `commit`, `vertex`, `lookup`, `adjacency`, `reach`,
-`path`, `components`, `pin`, `compare`, `backup` or `restart` to select one.
+`path`, `components`, `inventory`, `pin`, `compare`, `backup` or `restart`
+to select one.
 Formal tests are deferred; no test runner is required.

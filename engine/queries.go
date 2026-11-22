@@ -89,3 +89,9 @@ func (db *Database) Components(name, handle string, q walk.ComponentsRequest) (R
 		return walk.Components(s.graph, s.adj, q)
 	})
 }
+
+func (db *Database) Inventory(name, handle string, q walk.InventoryRequest) (ReadResult[walk.InventoryResult], error) {
+	return query(db, name, handle, func(s *state) (walk.InventoryResult, error) {
+		return walk.Inventory(s.graph, q)
+	})
+}

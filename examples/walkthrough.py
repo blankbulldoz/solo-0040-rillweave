@@ -231,6 +231,105 @@ def expect_backup(base):
     return "pinned image restored under new identity; damaged image and overwrite rejected"
 
 
+def expect_inventory(base):
+    schema = {
+        "vertices": {"post": {"properties": {"zone": {"kind": "text"}}}},
+        "arcs": {
+            "link": {"from": "post", "to": "post"},
+            "guide": {"from": "post", "to": "post"},
+        },
+    }
+    yard = GRAPHS + "/stockyard"
+    request(base, GRAPHS, "POST", {"name": "stockyard", "schema": schema}, 201)
+    edits = [put_arc("forward", "p-a", "p-b", 1, "link")]
+    edits += [
+        put_arc("backward", "p-b", "p-a", 1, "link"),
+        put_arc("wrong-kind", "p-c", "p-c", 1, "guide"),
+    ]
+    for key, zone in (("p-a", "z1"), ("p-b", "z1"), ("p-c", "z1"), ("p-d", "z2")):
+        edits.append({"op": "put_vertex", "vertex": {
+            "id": key, "kind": "post", "properties": {"zone": zone},
+        }})
+    request(base, yard + "/commit", "POST", {"base": 1, "edits": edits})
+    query = {"from_kind": "post", "to_kind": "post", "property": "zone",
+             "arc_kind": "link"}
+    path = yard + "/inventory"
+
+    first = request(base, path, "POST", {**query, "limit": 2})["result"]
+    assert first["complete"] is False and first["truncated"] is True
+    assert [(row["from"]["id"], row["to"]["id"]) for row in first["gaps"]] == [
+        ("p-a", "p-a"), ("p-a", "p-c"),
+    ]
+    # Each gap points back at both original records with their properties.
+    assert first["gaps"][0]["from"]["properties"] == {"zone": "z1"}
+    assert first["scanned"] >= 2 and first["matched"] >= 2
+
+    pages = [first]
+    while not pages[-1]["complete"]:
+        page = request(base, path, "POST", {**query, "limit": 2,
+                                            "cursor": pages[-1]["cursor"]})["result"]
+        if not page["complete"]:
+            assert page["gaps"], "a non-final page must continue the boundary"
+        pages.append(page)
+    pairs = [(row["from"]["id"], row["to"]["id"])
+             for page in pages for row in page["gaps"]]
+    assert len(pairs) == len(set(pairs)), "cursor pagination must not repeat pairs"
+    assert pairs == [
+        ("p-a", "p-a"), ("p-a", "p-c"),
+        ("p-b", "p-b"), ("p-b", "p-c"),
+        ("p-c", "p-a"), ("p-c", "p-b"), ("p-c", "p-c"),
+        ("p-d", "p-d"),
+    ]
+    # Forward link covers (p-a,p-b); the reverse link only covers its own
+    # (p-b,p-a) pair and never closes the forward gap. The guide-kind self arc
+    # cannot cover the link requirement either, so (p-c,p-c) stays a gap.
+    assert ("p-a", "p-b") not in pairs and ("p-b", "p-a") not in pairs
+    assert ("p-c", "p-c") in pairs
+    # Values never cross cohorts: the z2 vertex only pairs with itself.
+    assert not any(("p-d" in pair) and pair != ("p-d", "p-d") for pair in pairs)
+
+    # A scan stopped by the budget keeps a boundary and resumes without losing
+    # or replaying pairs: replaying every page under a tight budget yields the
+    # same total set as the limit-driven walk above.
+    budgeted = []
+    cursor = ""
+    while True:
+        page = request(base, path, "POST", {**query, "budget": 3,
+                                            "cursor": cursor})["result"]
+        budgeted.extend((r["from"]["id"], r["to"]["id"]) for r in page["gaps"])
+        if page["complete"]:
+            break
+        assert page["scanned"] == 3 and page["cursor"]
+        cursor = page["cursor"]
+    assert budgeted == pairs
+
+    request(base, path, "POST", {**query, "from_kind": "ghost"}, 400, "invalid")
+    request(base, path, "POST", {**query, "arc_kind": "missing-kind"}, 400, "invalid")
+    request(base, path, "POST", {**query, "value": True}, 400, "invalid")
+    request(base, path, "POST", {**query, "cursor": "not-base64-!!!"}, 400, "invalid")
+
+    # Cursors are bound to the revision that issued them: a head move rejects
+    # the old boundary instead of silently scanning a shifted pair space.
+    boundary = request(base, path, "POST", {**query, "limit": 1})["result"]["cursor"]
+    request(base, yard + "/commit", "POST", {"base": 2, "edits": [
+        {"op": "put_vertex", "vertex": {"id": "p-e", "kind": "post",
+                                        "properties": {"zone": "z1"}}},
+    ]})
+    request(base, path, "POST", {**query, "cursor": boundary}, 409, "conflict")
+
+    # Inventory reads the pinned revision: an arc added at the head does not
+    # close a gap visible through an older view.
+    pin = hold(base, yard)
+    request(base, yard + "/commit", "POST", {"base": 3, "edits": [
+        put_arc("close-self", "p-a", "p-a", 1, "link"),
+    ]})
+    pinned = request(base, path + "?view=" + pin, "POST", query)["result"]
+    assert ("p-a", "p-a") in [(r["from"]["id"], r["to"]["id"]) for r in pinned["gaps"]]
+    head = request(base, path, "POST", query)["result"]
+    assert ("p-a", "p-a") not in [(r["from"]["id"], r["to"]["id"]) for r in head["gaps"]]
+    return "same-value pairs audited; reverse/other-kind arcs and unpaired values excluded; cursor pages never claim a false empty finish"
+
+
 def blocked_start(binary, data, reason):
     result = subprocess.run(command(binary, data), capture_output=True, text=True, timeout=8)
     assert result.returncode != 0 and reason in result.stderr, result
@@ -255,7 +354,8 @@ def expect_restart(binary, data):
 WORKFLOWS = {
     "catalog": expect_catalog, "commit": expect_commit, "vertex": expect_vertex,
     "lookup": expect_lookup, "adjacency": expect_adjacency, "reach": expect_reach,
-    "path": expect_path, "components": expect_components, "pin": expect_pin,
+    "path": expect_path, "components": expect_components, "inventory": expect_inventory,
+    "pin": expect_pin,
     "compare": expect_compare, "backup": expect_backup, "restart": expect_restart,
 }
 
