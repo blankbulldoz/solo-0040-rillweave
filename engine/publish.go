@@ -27,6 +27,11 @@ func (db *Database) Create(name string, s graph.Schema) (Summary, error) {
 		return Summary{}, err
 	}
 	g := graph.New(name, s)
+	identity, err := graph.NewIdentity()
+	if err != nil {
+		return Summary{}, err
+	}
+	g.Identity = identity
 	if err := catalog.Validate(g); err != nil {
 		return Summary{}, err
 	}
@@ -97,6 +102,9 @@ func (db *Database) Restore(name string, encoded image.Envelope) (RestoreResult,
 		return RestoreResult{}, err
 	}
 	g.Name, g.Revision = name, 1
+	if g.Identity, err = graph.NewIdentity(); err != nil {
+		return RestoreResult{}, err
+	}
 	installed, err := db.publish(g)
 	if err != nil {
 		return RestoreResult{}, err

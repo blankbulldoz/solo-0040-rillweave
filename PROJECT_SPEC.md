@@ -19,7 +19,7 @@ and `spar` in the examples are synthetic.
 | image | Portable versioned encoding, size limit and integrity |
 | disk | Exclusive writer ownership and durable file replacement |
 | view | Bounded handles to immutable read states |
-| engine | Head publication, pinned access and restore semantics |
+| engine | Head publication, pinned access, read revalidation and restore semantics |
 | wire | HTTP requests, bounded decoding and domain error mapping |
 
 ## Rules and lifecycles
@@ -32,12 +32,14 @@ vertex while leaving any adjacent arc is rejected. Positive arc costs are
 integers. Properties are strings, signed 64-bit integers or booleans;
 undeclared properties, explicit nulls and type coercion are not supported.
 
-The graph namespace moves from absent to installed. An edit set moves from
-candidate to validated to published or rejected. A graph revision can move
-from head to detached; explicitly held references remain usable. A handle
-moves from held to released (or disappears on restart). An image moves from
-encoded to verified to installed; malformed images never become a graph.
-Secondary indexes are rebuilt from the accepted immutable state.
+The graph namespace moves from absent to installed. An installed graph keeps
+one durable identity across commits and restarts; creation and restore each
+mint a fresh identity. An edit set moves from candidate to validated to
+published or rejected. A graph revision can move from head to detached;
+explicitly held references remain usable. A handle moves from held to
+released (or disappears on restart). An image moves from encoded to verified
+to installed; malformed images never become a graph. Secondary indexes are
+rebuilt from the accepted immutable state.
 
 Publishing a head writes and synchronizes a temporary image, replaces the
 node's durable graph file and synchronizes the directory. A failure after the
@@ -51,6 +53,7 @@ until restart. The instance must own its data directory exclusively.
 | catalog | Install or atomically replace typed rules; inspect a chosen view | Rule changes leaving incompatible graph state are rejected |
 | commit | Publish a final consistent graph at the next revision | Stale or invalid edits do not publish; unique swaps may apply in one revision |
 | vertex | Return exact contents and chosen revision | A vertex missing from that view returns not found |
+| revalidate | Confirm a held response credential against the resolved state and advise reuse | Identity, revision or resource change re-fetches; errors keep their own status |
 | lookup | Resolve typed equality via a vertex posting | Missing properties do not match a present value; wrong types are rejected |
 | adjacency | List directed arc identities and endpoints | Both directions include a self-loop once; mismatched kinds do not pass |
 | reach | Return minimum hop distances, including the selected root | Insufficient expansion budget returns an error, never a complete-looking prefix |

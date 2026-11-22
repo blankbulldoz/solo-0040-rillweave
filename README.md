@@ -26,7 +26,9 @@ Let `G` be `/rill/v1/graphs/{name}`. Pass `?view={handle}` on an applicable
 read to use a fixed view rather than the head. Normal reads return `graph`,
 `revision` and `result`. Errors give `code` and `details`: 400 invalid input,
 404 absent resource, 409 conflicting current graph state, 422 budget/capacity,
-503 storage unavailable. Unrecognized routes use the HTTP mux response.
+503 storage unavailable. Unrecognized routes use the HTTP mux response. The
+`GET` reads `G/catalog` and `G/vertices/{id}` also carry an `ETag` and answer
+`If-None-Match`; see conditional revalidation below.
 
 | Method | Resource | Input / Result |
 | --- | --- | --- |
@@ -88,6 +90,25 @@ adjacency defaults to 100, capped at 1000. It limits returned rows, not
 matching count or budget charge. A valid no-route result is `found:false`;
 that is different from a missing endpoint or a query that ran out of budget.
 
+### Conditional revalidation
+
+`GET G/catalog` and `GET G/vertices/{id}` return a strong `ETag`. A client
+that kept a response body may resend its tag in `If-None-Match`; the service
+answers `304 Not Modified` with an empty body only when the credential still
+describes the resolved state. Resolution and resource errors — an unknown
+graph, a released view handle, a vertex absent from the selected revision —
+keep their usual status and are never replaced by a reuse notice.
+
+The credential binds the durable graph identity, the selected revision and
+the addressed resource (`catalog` or the vertex ID). Revalidation therefore
+re-fetches when any of them changes: a commit bumps the revision (covering
+schema replacement, count changes and record puts or drops); installing a
+graph — creation, restore, or reopening a different graph under the same
+name — mints a fresh identity; switching vertices changes the resource. A
+vertex record untouched by a commit still re-fetches, because the body embeds
+the new revision. Two selections of one state, such as the head and a pin of
+the same revision, share a credential and may reuse one cached body.
+
 ### Storage and Verification
 
 A namespace has at most 10000 vertices, 40000 arcs and a 12 MiB image payload;
@@ -109,5 +130,5 @@ python3 examples/walkthrough.py --workflow all
 The Python 3 walkthrough starts temporary server processes with bounded
 synthetic inputs and prints success and rejection evidence. Use
 `--workflow catalog`, `commit`, `vertex`, `lookup`, `adjacency`, `reach`,
-`path`, `components`, `pin`, `compare`, `backup` or `restart` to select one.
-Formal tests are deferred; no test runner is required.
+`path`, `components`, `pin`, `compare`, `backup`, `restart` or `cache` to
+select one. Formal tests are deferred; no test runner is required.

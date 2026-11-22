@@ -2,6 +2,8 @@ package graph
 
 import (
 	"cmp"
+	"crypto/rand"
+	"encoding/hex"
 	"maps"
 	"slices"
 )
@@ -52,10 +54,21 @@ type Arc struct {
 
 type Graph struct {
 	Name     string            `json:"name"`
+	Identity string            `json:"identity"`
 	Revision uint64            `json:"revision"`
 	Schema   Schema            `json:"schema"`
 	Vertices map[string]Vertex `json:"vertices"`
 	Arcs     map[string]Arc    `json:"arcs"`
+}
+
+// NewIdentity mints a durable identity for a graph being installed. Creation
+// and restore each receive a fresh identity; a commit or a restart keeps it.
+func NewIdentity() (string, error) {
+	var raw [16]byte
+	if _, err := rand.Read(raw[:]); err != nil {
+		return "", Fail(Unavailable, "cannot allocate graph identity")
+	}
+	return hex.EncodeToString(raw[:]), nil
 }
 
 func New(name string, schema Schema) *Graph {

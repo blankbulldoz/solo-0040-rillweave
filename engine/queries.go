@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"fmt"
+
 	"rillweave/catalog"
 	"rillweave/graph"
 	"rillweave/index"
@@ -11,6 +13,9 @@ type ReadResult[T any] struct {
 	Graph    string `json:"graph"`
 	Revision uint64 `json:"revision"`
 	Result   T      `json:"result"`
+	// Validator is the response credential used for conditional revalidation.
+	// It travels in the ETag header and is never serialized into the body.
+	Validator string `json:"-"`
 }
 
 func query[T any](db *Database, name, handle string, f func(*state) (T, error)) (ReadResult[T], error) {
@@ -22,7 +27,32 @@ func query[T any](db *Database, name, handle string, f func(*state) (T, error)) 
 	if err != nil {
 		return ReadResult[T]{}, err
 	}
-	return ReadResult[T]{s.graph.Name, s.graph.Revision, result}, nil
+	return ReadResult[T]{Graph: s.graph.Name, Revision: s.graph.Revision, Result: result}, nil
+}
+
+// validator stamps a read body with the exact state it was drawn from: the
+// durable graph identity, the selected revision and the resource
+// discriminator. Any commit bumps the revision; installing a graph (creation,
+// restore, or a different graph reopened under the same name) changes the
+// identity, so a credential never outlives the state it describes.
+func validator(g *graph.Graph, resource string) string {
+	return fmt.Sprintf("v1:%s:%d:%s", g.Identity, g.Revision, resource)
+}
+
+// conditional runs a read whose response the caller may cache and revalidate
+// against a later request; see validator for what the credential covers.
+func conditional[T any](db *Database, name, handle, resource string, f func(*state) (T, error)) (ReadResult[T], error) {
+	s, err := db.read(name, handle)
+	if err != nil {
+		return ReadResult[T]{}, err
+	}
+	result, err := f(s)
+	if err != nil {
+		return ReadResult[T]{}, err
+	}
+	out := ReadResult[T]{Graph: s.graph.Name, Revision: s.graph.Revision, Result: result}
+	out.Validator = validator(s.graph, resource)
+	return out, nil
 }
 
 type CatalogResult struct {
@@ -31,13 +61,13 @@ type CatalogResult struct {
 }
 
 func (db *Database) Catalog(name, handle string) (ReadResult[CatalogResult], error) {
-	return query(db, name, handle, func(s *state) (CatalogResult, error) {
+	return conditional(db, name, handle, "catalog", func(s *state) (CatalogResult, error) {
 		return CatalogResult{s.graph.Schema, summary(s.graph)}, nil
 	})
 }
 
 func (db *Database) Vertex(name, handle, id string) (ReadResult[graph.Vertex], error) {
-	return query(db, name, handle, func(s *state) (graph.Vertex, error) {
+	return conditional(db, name, handle, "vertex:"+id, func(s *state) (graph.Vertex, error) {
 		v, ok := s.graph.Vertices[id]
 		if !ok {
 			return graph.Vertex{}, graph.Fail(graph.Missing, "vertex %q is not in this revision", id)

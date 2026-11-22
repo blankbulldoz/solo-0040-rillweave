@@ -61,6 +61,13 @@ func (db *Database) acceptHead(name string, encoded image.Envelope) error {
 	if name != g.Name {
 		return fmt.Errorf("disk name %q does not match image name %q", name, g.Name)
 	}
+	if g.Identity == "" {
+		// Heads written before durable identities existed adopt one on open;
+		// it becomes durable at the next publish.
+		if g.Identity, err = graph.NewIdentity(); err != nil {
+			return err
+		}
+	}
 	db.heads[name] = materialize(g)
 	return nil
 }

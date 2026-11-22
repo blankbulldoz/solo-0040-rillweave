@@ -68,6 +68,41 @@ def request(base, path, verb="GET", body=None, status=200, code=None):
     return value
 
 
+def raw_get(base, path, etag=None):
+    headers = {"Content-Type": "application/json"}
+    if etag is not None:
+        headers["If-None-Match"] = etag
+    req = Request(base + path, None, headers, method="GET")
+    try:
+        with urlopen(req, timeout=5) as response:
+            return response.status, response.headers.get("ETag"), response.read()
+    except HTTPError as response:
+        with response:
+            return response.code, response.headers.get("ETag"), response.read()
+
+
+class TabCache:
+    """Browser-tab style cache: bodies keyed by tab URL, revalidated by ETag."""
+
+    def __init__(self, base):
+        self.base = base
+        self.entries = {}
+
+    def etag(self, path):
+        return self.entries[path][0]
+
+    def fetch(self, path):
+        etag = self.entries[path][0] if path in self.entries else None
+        status, current, payload = raw_get(self.base, path, etag)
+        if status == 304:
+            assert payload == b"" and etag is not None and current == etag
+            return self.entries[path][1], True
+        assert status == 200 and current, (path, status, payload)
+        body = json.loads(payload)
+        self.entries[path] = (current, body)
+        return body, False
+
+
 def put_vertex(key, tag=None):
     props = {"tag": tag} if tag is not None else {}
     return {"op": "put_vertex", "vertex": {"id": key, "kind": "strut", "properties": props}}
@@ -252,11 +287,87 @@ def expect_restart(binary, data):
     return "directory held exclusively; durable head and index recovered; corruption fails startup"
 
 
+def expect_cache(binary, data):
+    with serve(binary, data) as base:
+        seed(base)
+        tabs = TabCache(base)
+        body, hit = tabs.fetch(GRAPH + "/catalog")
+        assert not hit and body["revision"] == 2
+        reused, hit = tabs.fetch(GRAPH + "/catalog")
+        assert hit and reused == body
+        catalog_v2 = tabs.etag(GRAPH + "/catalog")
+
+        hinge, hit = tabs.fetch(GRAPH + "/vertices/hinge")
+        assert not hit and hinge["result"]["id"] == "hinge"
+        _, hit = tabs.fetch(GRAPH + "/vertices/hinge")
+        assert hit
+        hinge_v2 = tabs.etag(GRAPH + "/vertices/hinge")
+
+        # Same revision, another vertex or another resource: no transfer.
+        status, _, payload = raw_get(base, GRAPH + "/vertices/spar", hinge_v2)
+        assert status == 200 and json.loads(payload)["result"]["id"] == "spar"
+        status, _, _ = raw_get(base, GRAPH + "/catalog", hinge_v2)
+        assert status == 200
+        # A credential never stands in for a missing graph.
+        status, _, payload = raw_get(base, GRAPHS + "/ghost/catalog", catalog_v2)
+        assert status == 404 and json.loads(payload)["code"] == "not_found"
+
+        # A pinned tab and the head tab over one state share the credential.
+        pin = hold(base)
+        pinned = GRAPH + "/catalog?view=" + pin
+        _, hit = tabs.fetch(pinned)
+        assert not hit and tabs.etag(pinned) == catalog_v2
+        _, hit = tabs.fetch(pinned)
+        assert hit
+
+        commit(base, 2, [put_vertex("wing", "west")])
+        moved, hit = tabs.fetch(GRAPH + "/catalog")
+        assert not hit and moved["revision"] == 3 and moved["result"]["vertices"] == 5
+        reused, hit = tabs.fetch(pinned)
+        assert hit and reused == request(base, pinned)
+        hinge3, hit = tabs.fetch(GRAPH + "/vertices/hinge")
+        assert not hit and hinge3["revision"] == 3
+
+        # Credentials never mask resource errors.
+        status, _, payload = raw_get(base, GRAPH + "/vertices/wing?view=" + pin, catalog_v2)
+        assert status == 404 and json.loads(payload)["code"] == "not_found"
+        request(base, GRAPH + "/pins/" + pin, "DELETE", status=204)
+        status, _, _ = raw_get(base, pinned, catalog_v2)
+        assert status == 404
+
+        # One image installed as two graphs: same revision, fresh identities.
+        envelope = request(base, GRAPH + "/image")
+        for name in ("pier", "trestle"):
+            request(base, GRAPHS + "/" + name + "/image", "PUT", envelope, 201)
+        status, pier_tag, _ = raw_get(base, GRAPHS + "/pier/catalog")
+        assert status == 200 and pier_tag
+        status, trestle_tag, _ = raw_get(base, GRAPHS + "/trestle/catalog", pier_tag)
+        assert status == 200 and trestle_tag != pier_tag
+        head_tag = tabs.etag(GRAPH + "/catalog")
+
+    # Reopening the same directory keeps the durable identity.
+    with serve(binary, data) as base:
+        status, _, payload = raw_get(base, GRAPH + "/catalog", head_tag)
+        assert status == 304 and payload == b""
+
+    # The same name and revision in another data directory is another graph.
+    with serve(binary, data.parent / "cache-elsewhere") as base:
+        seed(base)
+        status, foreign, payload = raw_get(base, GRAPH + "/catalog", catalog_v2)
+        assert status == 200 and foreign != catalog_v2
+        assert json.loads(payload)["revision"] == 2
+        status, _, _ = raw_get(base, GRAPH + "/vertices/hinge", hinge_v2)
+        assert status == 200
+    return ("etag reuse hits within one state; vertex, revision, identity or "
+            "view changes re-fetch; released pins and foreign graphs keep errors")
+
+
 WORKFLOWS = {
     "catalog": expect_catalog, "commit": expect_commit, "vertex": expect_vertex,
     "lookup": expect_lookup, "adjacency": expect_adjacency, "reach": expect_reach,
     "path": expect_path, "components": expect_components, "pin": expect_pin,
     "compare": expect_compare, "backup": expect_backup, "restart": expect_restart,
+    "cache": expect_cache,
 }
 
 
@@ -270,8 +381,8 @@ def main():
         subprocess.run(["go", "build", "-o", binary, "./cmd/rillweaved"], cwd=ROOT, check=True, timeout=90)
         for name in WORKFLOWS if choice == "all" else [choice]:
             data = tmp / name
-            if name == "restart":
-                output = expect_restart(binary, data)
+            if name in ("restart", "cache"):
+                output = WORKFLOWS[name](binary, data)
             else:
                 with serve(binary, data) as base:
                     seed(base)
