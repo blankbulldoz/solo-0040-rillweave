@@ -50,6 +50,7 @@ until restart. The instance must own its data directory exclusively.
 | --- | --- | --- |
 | catalog | Install or atomically replace typed rules; inspect a chosen view | Rule changes leaving incompatible graph state are rejected |
 | commit | Publish a final consistent graph at the next revision | Stale or invalid edits do not publish; unique swaps may apply in one revision |
+| purge | Preview then confirm a batch vertex removal with its full arc closure and protected-pair rulings | Stale bases, mismatched arc confirmations and pairs left without a route are rejected without changing the graph |
 | vertex | Return exact contents and chosen revision | A vertex missing from that view returns not found |
 | lookup | Resolve typed equality via a vertex posting | Missing properties do not match a present value; wrong types are rejected |
 | adjacency | List directed arc identities and endpoints | Both directions include a self-loop once; mismatched kinds do not pass |

@@ -31,6 +31,16 @@ func (s service) commit(w http.ResponseWriter, r *http.Request) {
 	result(w, published, err, http.StatusOK)
 }
 
+func (s service) purge(w http.ResponseWriter, r *http.Request) {
+	var q change.Confirmation
+	if err := decode(w, r, &q, maxRequest); err != nil {
+		result(w, nil, err, 0)
+		return
+	}
+	published, err := s.db.Purge(r.PathValue("name"), q)
+	result(w, published, err, http.StatusOK)
+}
+
 func (s service) hold(w http.ResponseWriter, r *http.Request) {
 	held, err := s.db.Hold(r.PathValue("name"))
 	result(w, held, err, http.StatusCreated)

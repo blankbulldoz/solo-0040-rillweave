@@ -33,6 +33,8 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | POST | `/rill/v1/graphs` | `{"name":"...","schema":{...}}`; creates revision 1 |
 | GET | `G/catalog` | Schema, vertex and arc counts |
 | POST | `G/commit` | `{"base":1,"edits":[...]}`; new head summary |
+| POST | `G/purge/preview` | `vertices`, optional `preserve`; removal plan with per-pair rulings |
+| POST | `G/purge` | `base`, `vertices`, confirmed `arcs`, optional `preserve`; new head summary |
 | GET | `G/vertices/{id}` | One vertex in the selected revision |
 | POST | `G/lookup` | `kind`, `property`, `value`, optional `limit`; IDs and exact count |
 | POST | `G/adjacency` | `vertex`, optional selection and `limit`; matching arcs by ID |
@@ -88,6 +90,27 @@ adjacency defaults to 100, capped at 1000. It limits returned rows, not
 matching count or budget charge. A valid no-route result is `found:false`;
 that is different from a missing endpoint or a query that ran out of budget.
 
+### Batch removal
+
+`POST G/purge/preview` plans the removal of 1..2000 vertices in one pass
+against the selected view. The plan lists every arc that would disappear
+(self-loops and parallel arcs under their own IDs) and the `crossing` subset
+with exactly one endpoint retained. Each preserved pair gives `from`, `to`,
+optional `kinds` and `direction` (default `out`); endpoints must exist and
+stay outside the removal set, and at most 1024 pairs are checked per call. A
+pair is `kept` when a route still exists after the whole batch is removed
+(the surviving witness arcs are returned), `broken` when a route exists now
+but the merged removal leaves none, and `absent` when no route exists even
+now. Only `broken` pairs block; a pair whose old route loses a crossing arc
+but keeps a detour stays `kept`. Pairs sharing a root, direction and kind set
+are checked in a single expansion, and pairs whose current route avoids the
+removal set are not re-searched.
+
+`POST G/purge` confirms a preview against the head: `base` must still be the
+head revision and `arcs` must equal the previewed closure exactly, otherwise
+the request is rejected and a fresh preview is required. Preserved pairs are
+re-checked at confirmation, and a blocked batch changes nothing.
+
 ### Storage and Verification
 
 A namespace has at most 10000 vertices, 40000 arcs and a 12 MiB image payload;
@@ -109,5 +132,5 @@ python3 examples/walkthrough.py --workflow all
 The Python 3 walkthrough starts temporary server processes with bounded
 synthetic inputs and prints success and rejection evidence. Use
 `--workflow catalog`, `commit`, `vertex`, `lookup`, `adjacency`, `reach`,
-`path`, `components`, `pin`, `compare`, `backup` or `restart` to select one.
-Formal tests are deferred; no test runner is required.
+`path`, `components`, `pin`, `compare`, `backup`, `purge` or `restart` to
+select one. Formal tests are deferred; no test runner is required.

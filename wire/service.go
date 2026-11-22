@@ -24,6 +24,8 @@ func New(db *engine.Database) http.Handler {
 	mux.HandleFunc("POST /rill/v1/graphs", s.create)
 	mux.HandleFunc("GET /rill/v1/graphs/{name}/catalog", s.catalog)
 	mux.HandleFunc("POST /rill/v1/graphs/{name}/commit", s.commit)
+	mux.HandleFunc("POST /rill/v1/graphs/{name}/purge/preview", reading(db.PurgePreview))
+	mux.HandleFunc("POST /rill/v1/graphs/{name}/purge", s.purge)
 	mux.HandleFunc("GET /rill/v1/graphs/{name}/vertices/{id}", s.vertex)
 	mux.HandleFunc("POST /rill/v1/graphs/{name}/lookup", reading(db.Lookup))
 	mux.HandleFunc("POST /rill/v1/graphs/{name}/adjacency", reading(db.Adjacent))

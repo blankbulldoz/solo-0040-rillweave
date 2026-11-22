@@ -252,11 +252,74 @@ def expect_restart(binary, data):
     return "directory held exclusively; durable head and index recovered; corruption fails startup"
 
 
+def expect_purge(base):
+    result = commit(base, 2, [
+        put_arc("j1", "hinge", "m1", 1), put_arc("j1x", "hinge", "m1", 1),
+        put_arc("j2", "m1", "wing", 1), put_arc("j3", "hinge", "m2", 1),
+        put_arc("j4", "m2", "wing", 1), put_arc("m1loop", "m1", "m1", 1),
+        put_vertex("m1"), put_vertex("m2"), put_vertex("wing"),
+    ])
+    assert result == {"name": "abutment", "revision": 3, "vertices": 7, "arcs": 14}
+    path = GRAPH + "/purge"
+    pairs = [
+        {"from": "hinge", "to": "wing", "kinds": ["join"]},
+        {"from": "wing", "to": "hinge", "kinds": ["join"], "direction": "in"},
+        {"from": "hinge", "to": "keel", "kinds": ["join"]},
+        {"from": "tip", "to": "keel", "kinds": ["join"]},
+    ]
+    preview = request(base, path + "/preview", "POST", {"vertices": ["m1"], "preserve": pairs})
+    assert preview["revision"] == 3
+    plan = preview["result"]
+    assert plan["vertices"] == ["m1"] and plan["arcs"] == ["j1", "j1x", "j2", "m1loop"]
+    assert plan["crossing"] == ["j1", "j1x", "j2"] and not plan["blocked"]
+    rows = plan["pairs"]
+    assert [row["status"] for row in rows] == ["kept", "kept", "kept", "absent"]
+    assert rows[0]["before"] == ["j1", "j2"] and rows[0]["after"] == ["j3", "j4"]
+    assert rows[1]["before"] == ["j2", "j1"] and rows[1]["after"] == ["j4", "j3"]
+    assert rows[2]["before"] == ["bypass"] and rows[2]["after"] == ["bypass"]
+    assert "before" not in rows[3] and "after" not in rows[3]
+    merged = request(base, path + "/preview", "POST", {
+        "vertices": ["m1", "m2"],
+        "preserve": [{"from": "hinge", "to": "wing", "kinds": ["join"]}],
+    })["result"]
+    assert merged["arcs"] == ["j1", "j1x", "j2", "j3", "j4", "m1loop"]
+    assert merged["crossing"] == ["j1", "j1x", "j2", "j3", "j4"]
+    assert merged["blocked"] and merged["pairs"][0]["status"] == "broken"
+    assert merged["pairs"][0]["before"] == ["j1", "j2"] and "after" not in merged["pairs"][0]
+    request(base, path, "POST", {
+        "base": 3, "vertices": ["m1", "m2"], "arcs": merged["arcs"],
+        "preserve": [{"from": "hinge", "to": "wing", "kinds": ["join"]}],
+    }, 409, "conflict")
+    request(base, path, "POST", {"base": 3, "vertices": ["m1"], "arcs": ["j1"]}, 409, "conflict")
+    assert catalog(base)["result"]["arcs"] == 14
+    request(base, path + "/preview", "POST", {"vertices": ["ghost"]}, 404, "not_found")
+    request(base, path + "/preview", "POST",
+            {"vertices": ["m2"], "preserve": [{"from": "hinge", "to": "m2"}]}, 400, "invalid")
+    request(base, path + "/preview", "POST",
+            {"vertices": ["m2"], "preserve": [{"from": "hinge", "to": "wing", "kinds": ["nope"]}]},
+            400, "invalid")
+    commit(base, 3, [put_vertex("wing")])
+    request(base, path, "POST",
+            {"base": 3, "vertices": ["m1"], "arcs": ["j1", "j1x", "j2", "m1loop"]}, 409, "conflict")
+    again = request(base, path + "/preview", "POST", {"vertices": ["m1"], "preserve": pairs})
+    assert again["revision"] == 4 and again["result"]["arcs"] == ["j1", "j1x", "j2", "m1loop"]
+    result = request(base, path, "POST", {
+        "base": 4, "vertices": ["m1"], "arcs": again["result"]["arcs"], "preserve": pairs,
+    })
+    assert result == {"name": "abutment", "revision": 5, "vertices": 6, "arcs": 10}
+    request(base, GRAPH + "/vertices/m1", status=404, code="not_found")
+    route = request(base, GRAPH + "/path", "POST",
+                    {"from": "hinge", "to": "wing", "max_hops": 2, "kinds": ["join"]})["result"]
+    assert route["found"] and route["arcs"] == ["j3", "j4"]
+    return "detours, absences and merged breaks ruled; blocked, stale and mismatched batches change nothing"
+
+
 WORKFLOWS = {
     "catalog": expect_catalog, "commit": expect_commit, "vertex": expect_vertex,
     "lookup": expect_lookup, "adjacency": expect_adjacency, "reach": expect_reach,
     "path": expect_path, "components": expect_components, "pin": expect_pin,
     "compare": expect_compare, "backup": expect_backup, "restart": expect_restart,
+    "purge": expect_purge,
 }
 
 
