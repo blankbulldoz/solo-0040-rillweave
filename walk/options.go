@@ -20,8 +20,7 @@ type topology struct {
 	adj       *index.Adjacency
 	direction index.Direction
 	kinds     map[string]bool
-	allowance int
-	scanned   int
+	meter
 }
 
 func topologyFor(g *graph.Graph, a *index.Adjacency, s Selection) (*topology, error) {
@@ -38,7 +37,7 @@ func topologyFor(g *graph.Graph, a *index.Adjacency, s Selection) (*topology, er
 		return nil, graph.Fail(graph.Invalid, "invalid expansion budget or arc-kind count")
 	}
 	t := &topology{
-		adj: a, direction: s.Direction, allowance: s.Budget,
+		adj: a, direction: s.Direction, meter: meter{allowance: s.Budget},
 		kinds: make(map[string]bool, len(s.Kinds)),
 	}
 	for _, kind := range s.Kinds {
@@ -50,17 +49,23 @@ func topologyFor(g *graph.Graph, a *index.Adjacency, s Selection) (*topology, er
 	return t, nil
 }
 
+// visit enumerates candidate arcs and bills each one before selection. The
+// charge therefore covers repeated inspections and candidates discarded by
+// kind; only billed candidates that pass selection reach use.
 func (t *topology) visit(from string, d index.Direction, use func(graph.Arc, string) error) error {
 	return t.adj.Visit(from, d, func(a graph.Arc, next string) error {
-		if t.scanned == t.allowance {
-			return graph.Fail(graph.Budget, "expansion budget exhausted after %d candidate arcs", t.scanned)
+		if err := t.charge(); err != nil {
+			return err
 		}
-		t.scanned++
-		if len(t.kinds) != 0 && !t.kinds[a.Kind] {
+		if !t.allows(a) {
 			return nil
 		}
 		return use(a, next)
 	})
+}
+
+func (t *topology) allows(a graph.Arc) bool {
+	return len(t.kinds) == 0 || t.kinds[a.Kind]
 }
 
 func requireVertex(g *graph.Graph, id string) error {
