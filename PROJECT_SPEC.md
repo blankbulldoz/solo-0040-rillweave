@@ -52,7 +52,7 @@ until restart. The instance must own its data directory exclusively.
 | commit | Publish a final consistent graph at the next revision | Stale or invalid edits do not publish; unique swaps may apply in one revision |
 | vertex | Return exact contents and chosen revision | A vertex missing from that view returns not found |
 | lookup | Resolve typed equality via a vertex posting | Missing properties do not match a present value; wrong types are rejected |
-| adjacency | List directed arc identities and endpoints | Both directions include a self-loop once; mismatched kinds do not pass |
+| adjacency | List directed arc identities and endpoints in bounded ID-ordered windows resumed by an opaque cursor | Both directions include a self-loop once; parallel arcs all appear; a cursor moved off its revision or scan is rejected |
 | reach | Return minimum hop distances, including the selected root | Insufficient expansion budget returns an error, never a complete-looking prefix |
 | path | Return least total cost within the hop limit and the witnessing arcs | No route within the chosen subgraph is distinct from budget exhaustion |
 | components | Return strongly connected components and directed links between groups | Weak connectivity and parallel arcs do not merge or multiply component links |

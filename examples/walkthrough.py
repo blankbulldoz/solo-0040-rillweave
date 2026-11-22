@@ -154,9 +154,122 @@ def expect_adjacency(base):
     path = GRAPH + "/adjacency"
     value = request(base, path, "POST", {**q, "limit": 4})["result"]
     assert [a["id"] for a in value["arcs"]] == ["brace", "brace-alt", "bypass", "loop"]
-    assert value["truncated"] and value["matched"] == 5 and value["scanned"] == 6
+    # Scanned counts only this page's candidate inspections; the window stops
+    # once four matched rows are delivered, so later rows are not billed here.
+    assert value["truncated"] and value["matched"] == 5 and value["scanned"] == 4
     request(base, path, "POST", {**q, "kinds": ["unknown"]}, 400, "invalid")
-    return "parallel arcs retained; loop counted once; type filter and window respected"
+
+    # Page through the whole incidence with a continuation cursor. The second
+    # page resumes strictly after the last emitted arc ID and does not rescan
+    # the first window: only the final join row and the rejected guide remain.
+    cursor = value["next_cursor"]
+    both_cursor = cursor
+    assert cursor, "a truncated window must return a continuation cursor"
+    second = request(base, path, "POST", {**q, "limit": 4, "cursor": cursor})["result"]
+    assert [a["id"] for a in second["arcs"]] == ["return"]
+    assert second["matched"] == 5 and second["scanned"] == 2
+    assert not second["truncated"] and "next_cursor" not in second
+
+    # A full window followed by an empty continuation proves the cursor is
+    # positional rather than an offset that would re-emit or skip rows.
+    windows = request(base, path, "POST", {**q, "limit": 4})["result"]
+    mid_cursor = windows["next_cursor"]
+    tail = request(base, path, "POST", {**q, "limit": 4, "cursor": mid_cursor})["result"]
+    assert [a["id"] for a in tail["arcs"]] == ["return"] and tail["matched"] == 5
+    assert not tail["truncated"] and "next_cursor" not in tail
+    # Re-reading from the same cursor is deterministic and yields the same tail.
+    empty = request(base, path, "POST", {**q, "limit": 4, "cursor": mid_cursor})["result"]
+    assert [a["id"] for a in empty["arcs"]] == ["return"] and empty["matched"] == 5
+    # A window that exactly covers the full match set ends on the same page.
+    exact = request(base, path, "POST", {**q, "limit": 5})["result"]
+    assert len(exact["arcs"]) == 5 and not exact["truncated"] and "next_cursor" not in exact
+
+    # Parallel arcs share endpoints but keep distinct identities: every one of
+    # them must appear across the pages in arc ID order.
+    parallel = {"vertex": "hinge", "direction": "out", "kinds": ["join"], "limit": 1}
+    page = request(base, path, "POST", parallel)["result"]
+    seen = []
+    while True:
+        seen.extend(a["id"] for a in page["arcs"])
+        cursor = page.get("next_cursor")
+        if not cursor:
+            break
+        page = request(base, path, "POST", {**parallel, "cursor": cursor})["result"]
+    assert seen == ["brace", "brace-alt", "bypass", "loop"]
+
+    # The same multigraph in the reverse direction exposes the incoming
+    # parallel arcs as their own distinct identities.
+    incoming = {"vertex": "spar", "direction": "in", "kinds": ["join"], "limit": 1}
+    page = request(base, path, "POST", incoming)["result"]
+    seen = []
+    while True:
+        seen.extend(a["id"] for a in page["arcs"])
+        cursor = page.get("next_cursor")
+        if not cursor:
+            break
+        page = request(base, path, "POST", {**incoming, "cursor": cursor})["result"]
+    assert seen == ["brace", "brace-alt", "cross"]
+
+    # A loop occupies one row in each directional posting but is emitted once;
+    # self-loop pagination must not double-count or duplicate it.
+    loop_page = request(base, path, "POST", {
+        "vertex": "hinge", "direction": "both", "kinds": ["join"], "limit": 4,
+    })["result"]
+    assert sum(a["id"] == "loop" for a in loop_page["arcs"]) == 1
+    loop_again = request(base, path, "POST", {
+        "vertex": "hinge", "direction": "both", "kinds": ["join"],
+        "cursor": loop_page["next_cursor"],
+    })["result"]
+    assert all(a["id"] != "loop" for a in loop_again["arcs"])
+
+    # Malformed cursor and a cursor that changes the scan are rejected rather
+    # than silently interpreted as a new query.
+    request(base, path, "POST", {**q, "cursor": "not-a-token"}, 400, "invalid")
+    request(base, path, "POST", {
+        **q, "cursor": both_cursor, "direction": "in",
+    }, 400, "invalid")
+    request(base, path, "POST", {
+        "vertex": "keel", "direction": "both", "kinds": ["join"], "cursor": both_cursor,
+    }, 400, "invalid")
+
+    # Hold the current revision before any write so the pin can keep serving
+    # the original scan accurately while the head moves on.
+    pin = hold(base)
+
+    # Writes advance the revision; reusing an old head cursor is a recognizable
+    # continuation conflict, even when the previous last arc still exists.
+    commit(base, 2, [put_arc("afterward", "hinge", "tip", 1)])
+    request(base, path, "POST", {**q, "cursor": both_cursor}, 409, "conflict")
+    # A cursor issued on the new head carries revision 3.
+    head_cursor = request(base, path, "POST", {**q, "limit": 4})["result"]["next_cursor"]
+
+    # The frozen pin keeps paging the original revision 2 scan accurately.
+    pinned_first = request(base, GRAPH + "/adjacency?view=" + pin, "POST", {
+        **q, "limit": 4,
+    })
+    assert pinned_first["revision"] == 2
+    pinned_tail = request(base, GRAPH + "/adjacency?view=" + pin, "POST", {
+        **q, "cursor": pinned_first["result"]["next_cursor"],
+    })["result"]
+    assert [a["id"] for a in pinned_tail["arcs"]] == ["return"]
+    assert pinned_tail["matched"] == 5
+    # A newer head cursor cannot resume against the older pinned revision.
+    request(base, GRAPH + "/adjacency?view=" + pin, "POST", {
+        **q, "cursor": head_cursor,
+    }, 409, "conflict")
+    # The original revision-2 cursor remains valid against the matching pin.
+    request(base, GRAPH + "/adjacency?view=" + pin, "POST", {
+        **q, "cursor": both_cursor,
+    }, 200)
+
+    # Deleting the previous page's last arc on the head makes the old cursor
+    # fail cleanly instead of returning a silently shifted window.
+    commit(base, 3, [{"op": "drop_arc", "id": "afterward"}])
+    fresh = request(base, path, "POST", {**q, "limit": 4})["result"]
+    request(base, path, "POST", {**q, "cursor": fresh["next_cursor"]}, 200)
+    commit(base, 4, [{"op": "drop_arc", "id": "return"}])
+    request(base, path, "POST", {**q, "cursor": fresh["next_cursor"]}, 409, "conflict")
+    return "parallel arcs retained; loop counted once; cursor paging, revision conflicts and pinned continuation respected"
 
 
 def expect_reach(base):

@@ -35,7 +35,7 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | POST | `G/commit` | `{"base":1,"edits":[...]}`; new head summary |
 | GET | `G/vertices/{id}` | One vertex in the selected revision |
 | POST | `G/lookup` | `kind`, `property`, `value`, optional `limit`; IDs and exact count |
-| POST | `G/adjacency` | `vertex`, optional selection and `limit`; matching arcs by ID |
+| POST | `G/adjacency` | `vertex`, optional selection, `limit` and `cursor`; matching arcs by ID in bounded windows |
 | POST | `G/reach` | `root`, `max_hops`, optional selection; vertices with minimum hops |
 | POST | `G/path` | `from`, `to`, `max_hops`, optional selection; cheapest bounded path |
 | POST | `G/components` | Optional `kinds`, `budget`; strongly connected groups and directed links |
@@ -87,6 +87,32 @@ uses 300000; exhaustion rejects the whole query. `limit` for lookup and
 adjacency defaults to 100, capped at 1000. It limits returned rows, not
 matching count or budget charge. A valid no-route result is `found:false`;
 that is different from a missing endpoint or a query that ran out of budget.
+
+### Adjacency windows and continuation
+
+Adjacency never scans a vertex's whole incidence just to fill one window.
+Each response is one bounded window in deterministic arc ID order; `matched`
+is the exact total number of matching arcs in the selected revision (read
+from per-vertex incidence tallies, not by walking the posting), while
+`scanned` counts only the candidate arcs inspected for that page, including
+candidates the kind filter rejects. When more rows remain, the response
+carries an opaque `next_cursor`; pass it back as `cursor` with the same
+`vertex`, `direction` and `kinds` to resume strictly after the last returned
+arc ID. The cursor seeks inside the directional postings, so earlier pages
+are neither re-scanned nor re-billed: turning a large-incidence vertex into
+N pages costs the sum of the page scans, not N full-adjacency scans. A
+self-loop still occupies one result row in a `both` read, and parallel arcs
+keep distinct identities so every one of them appears across the windows.
+
+The cursor binds the logical scan and the revision that produced it. Other
+writers may keep committing between pages; a continuation against a view that
+has since moved to another revision is rejected with `409 conflict` rather
+than returning a silently shifted window, and this also covers the deletion
+of the previous page's last arc or a change to the arc-kind catalog. A
+malformed cursor, or one whose vertex, direction or kinds no longer match the
+request, is `400 invalid`. To page a stable snapshot while writes continue,
+hold the revision with a pin and pass `?view={handle}` on every page; the
+same cursor then remains valid for the life of that handle.
 
 ### Storage and Verification
 
