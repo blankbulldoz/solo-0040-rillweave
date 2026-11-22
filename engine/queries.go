@@ -89,3 +89,9 @@ func (db *Database) Components(name, handle string, q walk.ComponentsRequest) (R
 		return walk.Components(s.graph, s.adj, q)
 	})
 }
+
+func (db *Database) Impact(name, handle string, q walk.ImpactRequest) (ReadResult[walk.ImpactResult], error) {
+	return query(db, name, handle, func(s *state) (walk.ImpactResult, error) {
+		return walk.Impact(s.graph, s.adj, q)
+	})
+}

@@ -197,6 +197,124 @@ def expect_components(base):
     return "selected kind changes strong connectivity; directed quotient link verified"
 
 
+def expect_impact(base):
+    path = GRAPH + "/impact"
+    shared = request(base, path, "POST", {"sources": ["hinge", "keel"], "kinds": ["join"]})["result"]
+    assert shared["sources"] == ["hinge", "keel"]
+    assert shared["matched"] == 4 and shared["attributions"] == 6
+    assert [(c["vertex"], c["hops"], c["driven_by"], c.get("also_source", False))
+            for c in shared["consumers"]] == [
+        ("keel", 1, "single", True), ("spar", 1, "shared", False),
+        ("hinge", 2, "single", True), ("tip", 2, "shared", False),
+    ]
+    assert shared["source_scope"] == [
+        {"source": "hinge", "consumers": 3, "nearest_hop": 1},
+        {"source": "keel", "consumers": 3, "nearest_hop": 1},
+    ]
+    spar = shared["consumers"][1]
+    assert [a["source"] for a in spar["sources"]] == ["hinge", "keel"]
+    assert [a["hops"] for a in spar["sources"]] == [1, 1]
+    assert spar["sources"][0]["evidence"] == {"vertices": ["hinge", "spar"], "arcs": ["brace"]}
+    assert shared["consumers"][0]["sources"][0]["evidence"] == {
+        "vertices": ["hinge", "keel"], "arcs": ["bypass"],
+    }
+
+    cycle = request(base, path, "POST", {"sources": ["keel"], "kinds": ["join"]})["result"]
+    assert [(c["vertex"], c["hops"], c["driven_by"]) for c in cycle["consumers"]] == [
+        ("spar", 1, "single"), ("hinge", 2, "single"), ("tip", 2, "single"),
+    ]
+    hinge = cycle["consumers"][1]["sources"][0]["evidence"]
+    assert hinge["vertices"] == ["keel", "spar", "hinge"] and hinge["arcs"] == ["cross", "return"]
+
+    reverse = request(base, path, "POST", {
+        "sources": ["tip"], "kinds": ["join"], "direction": "in",
+    })["result"]
+    assert [(c["vertex"], c["hops"]) for c in reverse["consumers"]] == [
+        ("spar", 1), ("hinge", 2), ("keel", 2),
+    ]
+
+    window = request(base, path, "POST", {"sources": ["hinge"], "kinds": ["join"], "limit": 1})["result"]
+    assert window["matched"] == 3 and window["truncated"] and len(window["consumers"]) == 1
+
+    stopped = request(base, path, "POST", {
+        "sources": ["hinge"], "kinds": ["join"], "max_hops": 0,
+    })["result"]
+    assert stopped["matched"] == 0 and stopped["consumers"] == []
+
+    request(base, path, "POST", {"sources": []}, 400, "invalid")
+    request(base, path, "POST", {"sources": ["hinge", "hinge"]}, 400, "invalid")
+    request(base, path, "POST", {"sources": ["nowhere"]}, 404, "not_found")
+    request(base, path, "POST", {"sources": ["hinge"], "budget": 2}, 422, "budget_exhausted")
+
+    pin = hold(base)
+    pinned = request(base, path + "?view=" + pin, "POST", {"sources": ["hinge", "keel"], "kinds": ["join"]})
+    assert (pinned["graph"], pinned["revision"]) == ("abutment", 2)
+    assert pinned["result"]["matched"] == shared["matched"]
+
+    dense(base)
+    return "per-consumer attribution, single/shared split, cycle relay and overlapping paths verified"
+
+
+WEAVE = "/rill/v1/graphs/weave"
+WEAVE_ARCS = [
+    ("ab", "a", "b"), ("bc", "b", "c"), ("cd", "c", "d"), ("da", "d", "a"),
+    ("ce", "c", "e"), ("df", "d", "f"),
+    ("gm", "g", "m"), ("hm", "h", "m"), ("mn", "m", "n"), ("no", "n", "o"),
+    ("gp", "g", "p"),
+]
+
+
+def dense(base):
+    """Seed one cycle cluster full of sources and one pair sharing a path."""
+    request(base, "/rill/v1/graphs", "POST", {"name": "weave", "schema": SCHEMA}, 201)
+    edits = [put_vertex(key) for key in "abcdefghmnop"]
+    edits += [put_arc(arc, source, target, 1) for arc, source, target in WEAVE_ARCS]
+    request(base, WEAVE + "/commit", "POST", {"base": 1, "edits": edits})
+    path = WEAVE + "/impact"
+
+    crowded = request(base, path, "POST", {"sources": ["c", "a", "b"]})["result"]
+    assert crowded["sources"] == ["a", "b", "c"]
+    assert [(c["vertex"], c["hops"], c["driven_by"], c.get("also_source", False))
+            for c in crowded["consumers"]] == [
+        ("b", 1, "shared", True), ("c", 1, "shared", True), ("d", 1, "shared", False),
+        ("e", 1, "shared", False), ("a", 2, "shared", True), ("f", 2, "shared", False),
+    ]
+    # Every source in the cycle reaches the other two, and each consumer merges
+    # the sources that reach it, never itself.
+    for row in crowded["consumers"]:
+        expected = 2 if row.get("also_source") else 3
+        assert len(row["sources"]) == expected, row
+        assert row["vertex"] not in [a["source"] for a in row["sources"]]
+    assert [a["source"] for a in crowded["consumers"][2]["sources"]] == ["a", "b", "c"]
+    assert [a["hops"] for a in crowded["consumers"][2]["sources"]] == [3, 2, 1]
+    assert crowded["source_scope"] == [
+        {"source": "a", "consumers": 5, "nearest_hop": 1},
+        {"source": "b", "consumers": 5, "nearest_hop": 1},
+        {"source": "c", "consumers": 5, "nearest_hop": 1},
+    ]
+    assert crowded["matched"] == 6 and crowded["attributions"] == 15
+    # The a-b-c-d cycle keeps relaying every source, but a source is expanded
+    # from each vertex at most once, so the shared sweep stops at 18 instead of
+    # re-walking the loop for each origin.
+    assert crowded["scanned"] == 18
+
+    overlap = request(base, path, "POST", {"sources": ["h", "g"]})["result"]
+    assert overlap["sources"] == ["g", "h"]
+    assert [(c["vertex"], c["hops"], c["driven_by"]) for c in overlap["consumers"]] == [
+        ("m", 1, "shared"), ("p", 1, "single"), ("n", 2, "shared"), ("o", 3, "shared"),
+    ]
+    assert overlap["source_scope"] == [
+        {"source": "g", "consumers": 4, "nearest_hop": 1},
+        {"source": "h", "consumers": 3, "nearest_hop": 1},
+    ]
+    assert overlap["matched"] == 4 and overlap["attributions"] == 7
+    # g and h share the m-n-o tail, which is expanded once for both sources.
+    assert overlap["scanned"] == 5
+    wide = request(base, path, "POST", {"sources": ["h", "g"], "limit": 9})["result"]
+    assert wide["scanned"] == overlap["scanned"] and not wide["truncated"]
+    return crowded, overlap
+
+
 def expect_pin(base):
     pin = hold(base)
     query = "?view=" + pin
@@ -255,7 +373,8 @@ def expect_restart(binary, data):
 WORKFLOWS = {
     "catalog": expect_catalog, "commit": expect_commit, "vertex": expect_vertex,
     "lookup": expect_lookup, "adjacency": expect_adjacency, "reach": expect_reach,
-    "path": expect_path, "components": expect_components, "pin": expect_pin,
+    "path": expect_path, "components": expect_components, "impact": expect_impact,
+    "pin": expect_pin,
     "compare": expect_compare, "backup": expect_backup, "restart": expect_restart,
 }
 

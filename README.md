@@ -39,6 +39,7 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | POST | `G/reach` | `root`, `max_hops`, optional selection; vertices with minimum hops |
 | POST | `G/path` | `from`, `to`, `max_hops`, optional selection; cheapest bounded path |
 | POST | `G/components` | Optional `kinds`, `budget`; strongly connected groups and directed links |
+| POST | `G/impact` | `sources` (1..64), optional `max_hops`, `limit`, selection; per-consumer change attribution |
 | POST | `G/pins` | Holds current state; returns a handle and its revision |
 | DELETE | `G/pins/{handle}` | Releases handle; in-flight reads already resolved may finish |
 | POST | `G/compare` | `from` and `to` handles (empty means head); identity-based difference |
@@ -88,6 +89,27 @@ adjacency defaults to 100, capped at 1000. It limits returned rows, not
 matching count or budget charge. A valid no-route result is `found:false`;
 that is different from a missing endpoint or a query that ran out of budget.
 
+### Dependency impact
+
+`impact` answers which consumers a set of change sources forces to act, and
+why. It propagates all sources together over the selected `direction` and
+`kinds`, so a vertex that several sources reach lists each source with its own
+cheapest witness chain. `driven_by` is `single` when exactly one source reaches
+a consumer and `shared` when several do, which separates a local edit from a
+joint obligation. `also_source` marks a consumer that is itself a requested
+change source, so a cycle cluster shows its members forcing each other; no
+source reports reaching itself, and a source reached by a peer still appears as
+a consumer of that peer alone.
+
+A vertex keeps the set of sources already reaching it, so a cycle keeps relaying
+the change but each source is expanded from a vertex at most once. The reported
+`scanned`/`budget` pair therefore reflects that shared sweep rather than a
+separate search per source, and a bounded `limit` window charges no extra
+budget. `matched`, `attributions` and the per-source `source_scope` totals
+describe the whole propagation even when `truncated` hides consumers from the
+window. `horizon` echoes the hop cap; an explicit `max_hops` of zero reports no
+consumers. Sources must exist in the chosen revision and must not repeat.
+
 ### Storage and Verification
 
 A namespace has at most 10000 vertices, 40000 arcs and a 12 MiB image payload;
@@ -109,5 +131,6 @@ python3 examples/walkthrough.py --workflow all
 The Python 3 walkthrough starts temporary server processes with bounded
 synthetic inputs and prints success and rejection evidence. Use
 `--workflow catalog`, `commit`, `vertex`, `lookup`, `adjacency`, `reach`,
-`path`, `components`, `pin`, `compare`, `backup` or `restart` to select one.
+`path`, `components`, `impact`, `pin`, `compare`, `backup` or `restart` to
+select one.
 Formal tests are deferred; no test runner is required.
