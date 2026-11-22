@@ -1,7 +1,9 @@
 """Exercise the HTTP service against disposable data directories."""
 
 import argparse
+import base64
 from contextlib import contextmanager
+import hashlib
 import json
 from pathlib import Path
 import selectors
@@ -231,6 +233,147 @@ def expect_backup(base):
     return "pinned image restored under new identity; damaged image and overwrite rejected"
 
 
+def renamed_envelope(envelope, renames):
+    """Return an image envelope whose payload renames vertices and arcs.
+
+    The new envelope has a different digest because the bytes changed; the
+    collation workflow must never treat a digest as an equivalence premise.
+    Graph payloads encode vertices and arcs as keyed maps.
+    """
+    graph_doc = json.loads(base64.b64decode(envelope["payload"]))
+    vertices = {}
+    for old_id, vertex in graph_doc["vertices"].items():
+        new_id = renames.get(old_id, old_id)
+        vertices[new_id] = {**vertex, "id": new_id}
+    arcs = {}
+    for old_id, arc in graph_doc["arcs"].items():
+        new_id = renames.get(old_id, old_id)
+        arcs[new_id] = {
+            **arc, "id": new_id,
+            "from": renames.get(arc["from"], arc["from"]),
+            "to": renames.get(arc["to"], arc["to"]),
+        }
+    graph_doc["vertices"], graph_doc["arcs"] = vertices, arcs
+    return encode_envelope(graph_doc, envelope["format"])
+
+
+def envelope_graph(envelope):
+    return json.loads(base64.b64decode(envelope["payload"]))
+
+
+def encode_envelope(doc, fmt=1):
+    payload = json.JSONEncoder(separators=(",", ":")).encode(doc).encode()
+    return {
+        "format": fmt,
+        "sha256": hashlib.sha256(payload).hexdigest(),
+        "payload": base64.b64encode(payload).decode(),
+    }
+
+
+def write_envelope(folder, name, envelope):
+    path = folder / name
+    path.write_text(json.dumps(envelope), encoding="utf-8")
+    return path
+
+
+def run_collate(collate_binary, left_path, right_path, anchors="", budget=None):
+    cmd = [str(collate_binary)]
+    if anchors:
+        cmd += ["--anchors", anchors]
+    if budget is not None:
+        cmd += ["--budget", str(budget)]
+    cmd += [str(left_path), str(right_path)]
+    run = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+    return run.returncode, json.loads(run.stdout)
+
+
+def expect_collate(base, tmp):
+    collate_binary = tmp / "rillweave-collate"
+    subprocess.run(
+        ["go", "build", "-o", collate_binary, "./cmd/rillweave-collate"],
+        cwd=ROOT, check=True, timeout=90,
+    )
+    folder = tmp / "collation"
+    folder.mkdir()
+
+    # A renamed copy under an unused namespace: renamed vertices and arcs, a new
+    # local revision and necessarily a different digest, but the same structure.
+    original = request(base, GRAPH + "/image")
+    renames = {
+        "hinge": "pylon-a", "keel": "pylon-b", "spar": "pylon-c", "tip": "pylon-d",
+        "brace": "edge-1", "brace-alt": "edge-2", "bypass": "edge-3", "cross": "edge-4",
+        "stem": "edge-5", "return": "edge-6", "loop": "edge-7", "track": "edge-8",
+    }
+    renamed = renamed_envelope(original, renames)
+    assert renamed["sha256"] != original["sha256"]
+    left_path = write_envelope(folder, "left.json", original)
+    right_path = write_envelope(folder, "right.json", renamed)
+    code, verdict = run_collate(collate_binary, left_path, right_path)
+    assert code == 0 and verdict["status"] == "equivalent", verdict
+    assert verdict["mapping"]["vertices"]["hinge"] == "pylon-a"
+    assert verdict["mapping"]["vertices"]["tip"] == "pylon-d"
+    assert verdict["mapping"]["arcs"]["brace-alt"] == "edge-2"
+    assert verdict["mapping"]["arcs"]["loop"] == "edge-7"
+
+    # The imported copy really installs and answers reads under its new name.
+    receipt = request(base, GRAPHS + "/pier/image", "PUT", renamed, 201)
+    assert receipt["source"]["revision"] == 2 and receipt["installed"]["revision"] == 1
+
+    # A wrong anchor cannot force a mapping; a compatible anchor is accepted.
+    _, bad_anchor = run_collate(collate_binary, left_path, right_path, "hinge=pylon-c")
+    assert bad_anchor["status"] == "inequivalent", bad_anchor
+    _, anchored = run_collate(collate_binary, left_path, right_path, "hinge=pylon-a")
+    assert anchored["status"] == "equivalent", anchored
+
+    # Changing one arc cost breaks equivalence with reviewable evidence, even
+    # though every vertex keeps the same kind and properties.
+    altered_doc = envelope_graph(renamed)
+    for arc in altered_doc["arcs"].values():
+        if arc["id"] == "edge-1":
+            arc["cost"] = arc["cost"] + 5
+    altered = encode_envelope(altered_doc)
+    altered_path = write_envelope(folder, "altered.json", altered)
+    code, verdict = run_collate(collate_binary, left_path, altered_path)
+    assert code == 3 and verdict["status"] == "inequivalent", verdict
+    assert verdict["reason"], "inequivalence must name an invariant-level reason"
+
+    # A symmetric, locally indistinguishable pair can exhaust a deliberately
+    # tiny budget; the verdict is undetermined rather than a false mismatch.
+    ring_schema = {
+        "vertices": {"strut": {"properties": {}}},
+        "arcs": {"join": {"from": "strut", "to": "strut"}},
+    }
+    ring_doc = {
+        "name": "ring", "revision": 1, "schema": ring_schema,
+        "vertices": {f"v{i}": {"id": f"v{i}", "kind": "strut"} for i in range(6)},
+        "arcs": {
+            f"a{i}": {"id": f"a{i}", "kind": "join", "from": f"v{i}",
+                      "to": f"v{(i + 1) % 6}", "cost": 1}
+            for i in range(6)
+        },
+    }
+    split_doc = {
+        "name": "split", "revision": 1, "schema": ring_schema,
+        "vertices": {f"v{i}": {"id": f"v{i}", "kind": "strut"} for i in range(6)},
+        "arcs": {},
+    }
+    for seq, cycle in enumerate(([0, 1, 2], [3, 4, 5])):
+        for i, source in enumerate(cycle):
+            arc_id = f"b{seq}{i}"
+            split_doc["arcs"][arc_id] = {
+                "id": arc_id, "kind": "join", "from": f"v{source}",
+                "to": f"v{cycle[(i + 1) % len(cycle)]}", "cost": 1,
+            }
+    # Raw graph documents (no envelope) are also accepted as inputs.
+    ring_path = write_envelope(folder, "ring.json", ring_doc)
+    split_path = write_envelope(folder, "split.json", split_doc)
+    code, verdict = run_collate(collate_binary, ring_path, split_path, budget=1)
+    assert code == 4 and verdict["status"] == "undetermined" and verdict["budget_exhausted"], verdict
+    code, verdict = run_collate(collate_binary, ring_path, split_path)
+    assert code == 3 and verdict["status"] == "inequivalent", verdict
+    return "renamed image matched without trusting digests; anchors, cost evidence and budget verdict verified"
+
+
 def blocked_start(binary, data, reason):
     result = subprocess.run(command(binary, data), capture_output=True, text=True, timeout=8)
     assert result.returncode != 0 and reason in result.stderr, result
@@ -258,20 +401,27 @@ WORKFLOWS = {
     "path": expect_path, "components": expect_components, "pin": expect_pin,
     "compare": expect_compare, "backup": expect_backup, "restart": expect_restart,
 }
+# Workflows that need the shared temporary directory rather than only the URL.
+NEEDS_TMP = {"collate": expect_collate}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--workflow", choices=["all", *WORKFLOWS], default="all")
+    parser.add_argument("--workflow", choices=["all", *WORKFLOWS, *NEEDS_TMP], default="all")
     choice = parser.parse_args().workflow
+    names = [*WORKFLOWS, *NEEDS_TMP] if choice == "all" else [choice]
     with tempfile.TemporaryDirectory(prefix="rillweave-") as temp:
         tmp = Path(temp)
         binary = tmp / "rillweaved"
         subprocess.run(["go", "build", "-o", binary, "./cmd/rillweaved"], cwd=ROOT, check=True, timeout=90)
-        for name in WORKFLOWS if choice == "all" else [choice]:
+        for name in names:
             data = tmp / name
             if name == "restart":
                 output = expect_restart(binary, data)
+            elif name in NEEDS_TMP:
+                with serve(binary, data) as base:
+                    seed(base)
+                    output = NEEDS_TMP[name](base, tmp)
             else:
                 with serve(binary, data) as base:
                     seed(base)

@@ -15,6 +15,23 @@ go build -o rillweaved ./cmd/rillweaved
 ./rillweaved -listen 127.0.0.1:8174 -data ./rillweave-data
 ```
 
+A separate offline command compares two exported images without trusting their
+digests, because an import may have renamed vertices and arcs:
+
+```sh
+go build -o rillweave-collate ./cmd/rillweave-collate
+./rillweave-collate --anchors hinge=pylon-a left-image.json right-image.json
+```
+
+Each input is either an image envelope (`format`, `sha256`, base64 `payload`)
+or a raw graph document. Anchors are optional `left=right` vertex pairs that
+fix part of the correspondence; everything else is matched by kind,
+properties, arc direction, parallel multiplicity and cost through a bounded
+backtracking search. The JSON verdict is `equivalent` with a reviewable vertex
+and arc mapping (exit 0), `inequivalent` with census or arc-row evidence (exit
+3), or `undetermined` when the assignment budget is exhausted inside symmetric
+graphs (exit 4). An exhausted budget is never reported as a mismatch.
+
 The service prints its bound address and provides `GET /ready` (HTTP 200 on a
 usable instance, 503 on a detected durability fault). The service is meant for
 a trusted network and does not authenticate requests. A data directory is a
@@ -109,5 +126,5 @@ python3 examples/walkthrough.py --workflow all
 The Python 3 walkthrough starts temporary server processes with bounded
 synthetic inputs and prints success and rejection evidence. Use
 `--workflow catalog`, `commit`, `vertex`, `lookup`, `adjacency`, `reach`,
-`path`, `components`, `pin`, `compare`, `backup` or `restart` to select one.
-Formal tests are deferred; no test runner is required.
+`path`, `components`, `pin`, `compare`, `collate`, `backup` or `restart` to
+select one. Formal tests are deferred; no test runner is required.

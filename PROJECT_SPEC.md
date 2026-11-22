@@ -14,6 +14,7 @@ and `spar` in the examples are synthetic.
 | graph | Typed scalar values, identifiers, vertex and arc documents |
 | catalog | Rule definitions, endpoint compatibility and final-state uniqueness |
 | change | Private staged edit application and logical difference |
+| collate | Renaming-tolerant structural equivalence, anchor fixing and search budgets |
 | index | Deterministic adjacency and typed vertex postings |
 | walk | Graph query semantics, expansion budgets and witnesses |
 | image | Portable versioned encoding, size limit and integrity |
@@ -58,12 +59,29 @@ until restart. The instance must own its data directory exclusively.
 | components | Return strongly connected components and directed links between groups | Weak connectivity and parallel arcs do not merge or multiply component links |
 | pin | Hold and query a fixed revision, then release it | A handle from another graph, an exhausted quota or a released handle is rejected |
 | compare | Compare two views of the same graph by entity identity and schema change | A foreign handle cannot participate |
+| collate | Decide whether two fixed images are the same logical graph under renamed vertices and arcs | A wrong anchor or invariant mismatch is rejected; an exhausted search budget is undetermined, never a mismatch verdict |
 | backup | Export one selected revision and import it under an unused name | Malformed images and occupied names do not overwrite existing state |
 | restart | Reopen durable graphs and reconstruct indexes | Full corruption fails startup; ephemeral view handles are not recovered |
 
 The graph, revision, traversal constraints and work budget are visible through
 the protocol documented in README. Validate by building and running each
 bounded walkthrough against a temporary database. Formal tests are deferred.
+
+## Structural collation
+
+Two imported images can be logically equivalent even when their names,
+revisions, byte digests, vertex IDs and arc IDs all differ. A digest certifies
+bytes only and is never a premise of equivalence. The `collate` comparison is a
+fixed dual-view isomorphism check over the schema rule structure, vertex kind
+and properties, arc kind and properties, direction, positive cost, parallel
+multiplicity and self-loops. Callers may anchor part of the vertex
+correspondence through explicit left-to-right pairs; the remaining vertices
+are matched by exact local signatures and a bounded backtracking search, so a
+single failed guess never produces an inequivalence verdict. An admissible
+search that spends its assignment budget returns undetermined with the attempt
+count; invariant-level census failures are inequivalent regardless of budget
+and carry reviewable census or arc-row evidence, while equivalence returns a
+complete, reviewable vertex and arc mapping.
 
 ## Boundaries
 
