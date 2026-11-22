@@ -39,6 +39,7 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | POST | `G/reach` | `root`, `max_hops`, optional selection; vertices with minimum hops |
 | POST | `G/path` | `from`, `to`, `max_hops`, optional selection; cheapest bounded path |
 | POST | `G/components` | Optional `kinds`, `budget`; strongly connected groups and directed links |
+| POST | `G/flow` | `from`, `to`, optional `limit`, selection; bounded cross-group throughput |
 | POST | `G/pins` | Holds current state; returns a handle and its revision |
 | DELETE | `G/pins/{handle}` | Releases handle; in-flight reads already resolved may finish |
 | POST | `G/compare` | `from` and `to` handles (empty means head); identity-based difference |
@@ -88,6 +89,51 @@ adjacency defaults to 100, capped at 1000. It limits returned rows, not
 matching count or budget charge. A valid no-route result is `found:false`;
 that is different from a missing endpoint or a query that ran out of budget.
 
+### Cross-group flow
+
+`POST G/flow` turns the component links from existence into a measurable
+throughput. It first partitions the selected subgraph into strongly connected
+groups exactly like `G/components`. The business convention is explicit:
+vertices inside one group can switch to each other at no cost, while each
+original arc that crosses a group boundary keeps its own independent positive
+integer capacity, taken from the arc's stored `cost`. Parallel crossing arcs
+therefore add their capacities instead of collapsing into one link.
+
+The request gives the entry group through any member vertex `from` and the
+exit group through any member vertex `to`; endpoints in the same group are
+rejected (400), as are unknown vertices and unknown selected kinds. A positive
+`limit` is the caller's demand: when that many independent units can be routed,
+the answer stops early with `status:"sufficient"` and `available` equal to the
+limit. With no limit, or when the demand cannot be met, the query runs to the
+true maximum and answers `status:"exact"`. Capacities are pushed in bulk as
+integers, so a very wide arc next to a tiny limit is never expanded one unit
+at a time.
+
+```json
+{
+  "found": true,
+  "status": "exact",
+  "available": 4,
+  "limit": 0,
+  "entry": "hinge",
+  "exit": "tip",
+  "groups": ["hinge", "tip"],
+  "arcs": [{"arc": "stem", "from": "hinge", "to": "tip", "capacity": 1, "flow": 1}],
+  "routes": [{"groups": ["hinge", "tip"], "arcs": ["stem"], "flow": 1}],
+  "bottlenecks": [{"arc": "stem", "from": "hinge", "to": "tip", "capacity": 1}],
+  "scanned": 24
+}
+```
+
+`arcs` points back at every original crossing arc carrying throughput, with its
+capacity and assigned flow; `routes` is a deterministic decomposition whose
+bundles sum to `available`, each naming the group sequence and the original
+arcs that witness it. `bottlenecks` lists the original arcs of a certified
+minimum directed cut (whose capacities sum to `available`); it is populated
+only for an exact result, since a sufficient early stop has not proven any
+cut. A disconnected pair returns `found:false` with empty routes and
+bottlenecks.
+
 ### Storage and Verification
 
 A namespace has at most 10000 vertices, 40000 arcs and a 12 MiB image payload;
@@ -109,5 +155,5 @@ python3 examples/walkthrough.py --workflow all
 The Python 3 walkthrough starts temporary server processes with bounded
 synthetic inputs and prints success and rejection evidence. Use
 `--workflow catalog`, `commit`, `vertex`, `lookup`, `adjacency`, `reach`,
-`path`, `components`, `pin`, `compare`, `backup` or `restart` to select one.
-Formal tests are deferred; no test runner is required.
+`path`, `components`, `flow`, `pin`, `compare`, `backup` or `restart` to
+select one. Formal tests are deferred; no test runner is required.

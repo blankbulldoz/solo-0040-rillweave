@@ -15,7 +15,7 @@ and `spar` in the examples are synthetic.
 | catalog | Rule definitions, endpoint compatibility and final-state uniqueness |
 | change | Private staged edit application and logical difference |
 | index | Deterministic adjacency and typed vertex postings |
-| walk | Graph query semantics, expansion budgets and witnesses |
+| walk | Graph query semantics, expansion budgets, witnesses, component membership and cross-group flow |
 | image | Portable versioned encoding, size limit and integrity |
 | disk | Exclusive writer ownership and durable file replacement |
 | view | Bounded handles to immutable read states |
@@ -56,6 +56,7 @@ until restart. The instance must own its data directory exclusively.
 | reach | Return minimum hop distances, including the selected root | Insufficient expansion budget returns an error, never a complete-looking prefix |
 | path | Return least total cost within the hop limit and the witnessing arcs | No route within the chosen subgraph is distinct from budget exhaustion |
 | components | Return strongly connected components and directed links between groups | Weak connectivity and parallel arcs do not merge or multiply component links |
+| flow | Estimate independent cross-group throughput from an entry group to an exit group under an optional caller limit | Same-group endpoints are invalid; an exhausted budget or a disconnected pair is distinct from a bounded sufficient answer |
 | pin | Hold and query a fixed revision, then release it | A handle from another graph, an exhausted quota or a released handle is rejected |
 | compare | Compare two views of the same graph by entity identity and schema change | A foreign handle cannot participate |
 | backup | Export one selected revision and import it under an unused name | Malformed images and occupied names do not overwrite existing state |
@@ -64,6 +65,27 @@ until restart. The instance must own its data directory exclusively.
 The graph, revision, traversal constraints and work budget are visible through
 the protocol documented in README. Validate by building and running each
 bounded walkthrough against a temporary database. Formal tests are deferred.
+
+## Cross-group flow
+
+The flow query reuses the strongly connected partition of a components query
+over the same selected relations. Membership in one group is a stated business
+convention: any member can hand work to any other member without consuming
+capacity, so groups become the nodes of a directed quotient. Every original
+arc whose endpoints land in different groups becomes one independent quotient
+edge whose positive integer capacity is the arc's stored cost; parallel arcs
+stay independent and add. A request names entry and exit groups by any member
+vertex; two members of one group cannot be a flow pair.
+
+A positive caller limit bounds the search. Reaching it returns a sufficient
+answer at exactly the limit without proving the full maximum or any cut;
+otherwise the exact maximum is returned together with a minimum directed cut
+expressed as the original bottleneck arcs. Every result also lists per-arc
+assigned flow and a deterministic route decomposition whose bundles sum to the
+reported amount, each route naming its group sequence and witnessing arcs.
+Augmentation moves capacity in whole-arc bulk rather than one unit per step, so
+wide arcs beside small limits do not expand per unit. No route is a valid
+`found:false` result, separate from invalid endpoints and budget exhaustion.
 
 ## Boundaries
 

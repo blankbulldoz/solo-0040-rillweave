@@ -197,6 +197,53 @@ def expect_components(base):
     return "selected kind changes strong connectivity; directed quotient link verified"
 
 
+def expect_flow(base):
+    path = GRAPH + "/flow"
+    q = {"from": "hinge", "to": "tip", "kinds": ["join"]}
+    exact = request(base, path, "POST", q)["result"]
+    assert exact["found"] and exact["status"] == "exact" and exact["available"] == 1
+    assert exact["entry"] == "hinge" and exact["exit"] == "tip"
+    assert exact["arcs"] == [{"arc": "stem", "from": "hinge", "to": "tip",
+                              "capacity": 1, "flow": 1}]
+    assert exact["routes"] == [{"groups": ["hinge", "tip"], "arcs": ["stem"], "flow": 1}]
+    assert exact["bottlenecks"] == [{"arc": "stem", "from": "hinge", "to": "tip",
+                                     "capacity": 1}]
+    # Three traversal passes over the eight join arcs: two SCC passes and the
+    # crossing-arc collection.
+    assert exact["scanned"] == 24
+    bounded = request(base, path, "POST", {**q, "limit": 1})["result"]
+    assert bounded["status"] == "sufficient" and bounded["available"] == 1
+    assert bounded["bottlenecks"] == []
+    request(base, path, "POST", {"from": "hinge", "to": "tip"}, 400, "invalid")
+    request(base, path, "POST", {**q, "to": "ghost"}, 404, "not_found")
+    request(base, path, "POST", {**q, "limit": -1}, 400, "invalid")
+    request(base, path, "POST", {**q, "budget": 1}, 422, "budget_exhausted")
+
+    # A second graph holds wide cross-group links against tiny caller limits.
+    request(base, GRAPHS, "POST", {"name": "sluice", "schema": SCHEMA}, 201)
+    sluice = GRAPHS + "/sluice"
+    edits = [put_vertex(key) for key in ("a1", "a2", "b1", "b2", "c1", "c2")]
+    edits += [
+        put_arc("ia", "a1", "a2", 1), put_arc("ia-back", "a2", "a1", 1),
+        put_arc("ib", "b1", "b2", 1), put_arc("ib-back", "b2", "b1", 1),
+        put_arc("ic", "c1", "c2", 1), put_arc("ic-back", "c2", "c1", 1),
+        put_arc("flood", "a1", "b1", 3), put_arc("trickle", "a2", "b2", 1),
+        put_arc("gate", "b1", "c1", 4), put_arc("wide", "b2", "c2", 1_000_000_000),
+    ]
+    request(base, sluice + "/commit", "POST", {"base": 1, "edits": edits})
+    wide_q = {"from": "a1", "to": "c1"}
+    exact = request(base, sluice + "/flow", "POST", wide_q)["result"]
+    assert exact["status"] == "exact" and exact["available"] == 4
+    assert sorted(arc["arc"] for arc in exact["bottlenecks"]) == ["flood", "trickle"]
+    assert sum(route["flow"] for route in exact["routes"]) == 4
+    assert all(len(route["groups"]) == len(route["arcs"]) + 1 for route in exact["routes"])
+    sufficient = request(base, sluice + "/flow", "POST", {**wide_q, "limit": 2})["result"]
+    assert sufficient["status"] == "sufficient" and sufficient["available"] == 2
+    full = request(base, sluice + "/flow", "POST", {"from": "b1", "to": "c1"})["result"]
+    assert full["status"] == "exact" and full["available"] == 1_000_000_004
+    return "exact and bounded cross-group flow, min-cut bottlenecks and bulk wide arcs verified"
+
+
 def expect_pin(base):
     pin = hold(base)
     query = "?view=" + pin
@@ -255,7 +302,8 @@ def expect_restart(binary, data):
 WORKFLOWS = {
     "catalog": expect_catalog, "commit": expect_commit, "vertex": expect_vertex,
     "lookup": expect_lookup, "adjacency": expect_adjacency, "reach": expect_reach,
-    "path": expect_path, "components": expect_components, "pin": expect_pin,
+    "path": expect_path, "components": expect_components, "flow": expect_flow,
+    "pin": expect_pin,
     "compare": expect_compare, "backup": expect_backup, "restart": expect_restart,
 }
 

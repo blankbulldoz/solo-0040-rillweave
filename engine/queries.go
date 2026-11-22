@@ -89,3 +89,9 @@ func (db *Database) Components(name, handle string, q walk.ComponentsRequest) (R
 		return walk.Components(s.graph, s.adj, q)
 	})
 }
+
+func (db *Database) Flow(name, handle string, q walk.FlowRequest) (ReadResult[walk.FlowResult], error) {
+	return query(db, name, handle, func(s *state) (walk.FlowResult, error) {
+		return walk.Flow(s.graph, s.adj, q)
+	})
+}
