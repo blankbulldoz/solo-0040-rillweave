@@ -159,6 +159,74 @@ def expect_adjacency(base):
     return "parallel arcs retained; loop counted once; type filter and window respected"
 
 
+def expect_adjacency_batch(base):
+    path = GRAPH + "/adjacency/batch"
+    # hinge is the hot hub: both directions plus a kind filter, and the same
+    # vertex again with a different direction. keel and tip are cheap points.
+    queries = [
+        {"vertex": "hinge", "direction": "both", "kinds": ["join"]},
+        {"vertex": "keel", "direction": "out"},
+        {"vertex": "tip", "direction": "in", "kinds": ["join"]},
+        {"vertex": "hinge", "direction": "in", "kinds": ["guide"]},
+    ]
+    # One pinned read: every item must agree with its own single read.
+    pinned = hold(base)
+    value = request(base, path + "?view=" + pinned, "POST", {"queries": queries})["result"]
+    assert [item["complete"] for item in value["items"]] == [True, True, True, True]
+    assert value["complete"] and value["scanned"] == 6 + 1 + 1 + 3
+    # Hub: parallel arcs kept, self-loop placed once, guide arc charged but
+    # filtered, and reverse arcs appended in merge order.
+    assert [a["id"] for a in value["items"][0]["arcs"]] == [
+        "brace", "brace-alt", "bypass", "loop", "return"]
+    assert value["items"][0]["matched"] == 5 and value["items"][0]["scanned"] == 6
+    assert [a["id"] for a in value["items"][1]["arcs"]] == ["cross"]
+    assert [a["id"] for a in value["items"][2]["arcs"]] == ["stem"]
+    # Same vertex, different direction: hinge incoming guide arc is track,
+    # and the two filtered join candidates still cost budget.
+    assert [a["id"] for a in value["items"][3]["arcs"]] == ["track"]
+    assert value["items"][3]["matched"] == 1 and value["items"][3]["scanned"] == 3
+
+    # limit truncates each item's window but never the exact totals.
+    windowed = request(base, path + "?view=" + pinned, "POST",
+                       {"queries": queries[:1], "limit": 2})["result"]["items"][0]
+    assert [a["id"] for a in windowed["arcs"]] == ["brace", "brace-alt"]
+    assert windowed["matched"] == 5 and windowed["truncated"] and windowed["complete"]
+
+    # A page too small to give each query one inspection is refused outright.
+    request(base, path, "POST", {"queries": queries, "budget": 3}, 400, "invalid")
+
+    # A page equal to the total work completes every item. Each gets a
+    # guaranteed share of 2; keel and tip finish inside theirs, and the spare
+    # budget they release is what lets the hub finish at all.
+    exact = request(base, path + "?view=" + pinned, "POST",
+                    {"queries": queries, "budget": 11})["result"]
+    assert [item["guaranteed"] for item in exact["items"]] == [2, 2, 2, 2]
+    assert exact["complete"] and exact["scanned"] == 11
+    assert [item["matched"] for item in exact["items"]] == [5, 1, 1, 1]
+
+    # Under a tighter page the hot hub must not take everything: the cheap
+    # points and the filtered reverse query still complete, while the hub
+    # reports complete:false and an observed lower bound, not a total.
+    short = request(base, path + "?view=" + pinned, "POST",
+                    {"queries": queries, "budget": 8})["result"]
+    assert not short["complete"] and short["scanned"] == 8
+    hub, keel, tip, reverse = short["items"]
+    assert not hub["complete"] and hub["matched"] < 5 and not hub["truncated"]
+    assert keel["complete"] and keel["matched"] == 1
+    assert tip["complete"] and tip["matched"] == 1
+    assert reverse["complete"] and reverse["matched"] == 1
+
+    # The single-vertex read is unchanged by the batch path.
+    single = request(base, GRAPH + "/adjacency", "POST", {**queries[0], "limit": 4})["result"]
+    assert [a["id"] for a in single["arcs"]] == ["brace", "brace-alt", "bypass", "loop"]
+    assert single["truncated"] and single["matched"] == 5 and single["scanned"] == 6
+
+    request(base, path, "POST", {"queries": [{"vertex": "hinge", "direction": "sideways"}]}, 400, "invalid")
+    request(base, path, "POST", {"queries": [{"vertex": "hinge", "kinds": ["unknown"]}]}, 400, "invalid")
+    request(base, path, "POST", {"queries": [{"vertex": "absent"}]}, 404, "not_found")
+    return "batch serves hub and small points once; loop once; completion and totals honest"
+
+
 def expect_reach(base):
     q = {"root": "hinge", "max_hops": 2, "kinds": ["join"]}
     path = GRAPH + "/reach"
@@ -254,7 +322,8 @@ def expect_restart(binary, data):
 
 WORKFLOWS = {
     "catalog": expect_catalog, "commit": expect_commit, "vertex": expect_vertex,
-    "lookup": expect_lookup, "adjacency": expect_adjacency, "reach": expect_reach,
+    "lookup": expect_lookup, "adjacency": expect_adjacency,
+    "adjacency-batch": expect_adjacency_batch, "reach": expect_reach,
     "path": expect_path, "components": expect_components, "pin": expect_pin,
     "compare": expect_compare, "backup": expect_backup, "restart": expect_restart,
 }

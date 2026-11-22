@@ -36,6 +36,7 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | GET | `G/vertices/{id}` | One vertex in the selected revision |
 | POST | `G/lookup` | `kind`, `property`, `value`, optional `limit`; IDs and exact count |
 | POST | `G/adjacency` | `vertex`, optional selection and `limit`; matching arcs by ID |
+| POST | `G/adjacency/batch` | `queries` of `vertex`, `direction`, `kinds`, plus `limit` and shared `budget`; per-query arcs, counts and completion |
 | POST | `G/reach` | `root`, `max_hops`, optional selection; vertices with minimum hops |
 | POST | `G/path` | `from`, `to`, `max_hops`, optional selection; cheapest bounded path |
 | POST | `G/components` | Optional `kinds`, `budget`; strongly connected groups and directed links |
@@ -88,6 +89,30 @@ adjacency defaults to 100, capped at 1000. It limits returned rows, not
 matching count or budget charge. A valid no-route result is `found:false`;
 that is different from a missing endpoint or a query that ran out of budget.
 
+### Batched adjacency
+
+`G/adjacency/batch` answers several point-level adjacency queries against one
+selected revision under one shared arc allowance. Each entry in `queries`
+carries its own `vertex`, `direction` (`out` by default) and `kinds`, so the
+same vertex may be asked in different directions in the same request. `limit`
+applies to each item's returned window; `budget` is the whole page.
+
+Every query is promised a minimum inspection opportunity of `budget/queries`
+candidates, reported as that item's `guaranteed` value; a page too small to give
+each query even one inspection is rejected. Queries are advanced in rounds of at
+most one candidate each, so a hot hub cannot take a larger share while another
+query is still waiting. When a query completes before its reservation, the
+unused remainder stays in the page and is spent on the queries still working.
+
+An item reports `complete:true` only when its whole incidence stream was
+inspected; then `matched` is its exact total and `truncated` says whether that
+total exceeded `limit`, exactly as for a single read. An item stopped by the page
+allowance reports `complete:false` and `truncated:false`, and its `matched` is a
+lower bound only, never a truncated subtotal presented as a matching total. The
+top-level `complete` is true only when every item completed. Arc order, loop-once
+counting and pre-filter budget charging match the single-vertex read, whose
+result is unchanged.
+
 ### Storage and Verification
 
 A namespace has at most 10000 vertices, 40000 arcs and a 12 MiB image payload;
@@ -108,6 +133,7 @@ python3 examples/walkthrough.py --workflow all
 
 The Python 3 walkthrough starts temporary server processes with bounded
 synthetic inputs and prints success and rejection evidence. Use
-`--workflow catalog`, `commit`, `vertex`, `lookup`, `adjacency`, `reach`,
-`path`, `components`, `pin`, `compare`, `backup` or `restart` to select one.
+`--workflow catalog`, `commit`, `vertex`, `lookup`, `adjacency`,
+`adjacency-batch`, `reach`, `path`, `components`, `pin`, `compare`, `backup`
+or `restart` to select one.
 Formal tests are deferred; no test runner is required.

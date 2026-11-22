@@ -72,6 +72,12 @@ func (db *Database) Adjacent(name, handle string, q walk.AdjacentRequest) (ReadR
 	})
 }
 
+func (db *Database) AdjacentBatch(name, handle string, q walk.BatchRequest) (ReadResult[walk.BatchResult], error) {
+	return query(db, name, handle, func(s *state) (walk.BatchResult, error) {
+		return walk.Batch(s.graph, s.adj, q)
+	})
+}
+
 func (db *Database) Reach(name, handle string, q walk.ReachRequest) (ReadResult[walk.ReachResult], error) {
 	return query(db, name, handle, func(s *state) (walk.ReachResult, error) {
 		return walk.Reach(s.graph, s.adj, q)

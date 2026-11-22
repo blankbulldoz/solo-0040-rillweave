@@ -10,6 +10,7 @@
     {"workflow_id":"vertex","command":"python3 examples/walkthrough.py --workflow vertex"},
     {"workflow_id":"lookup","command":"python3 examples/walkthrough.py --workflow lookup"},
     {"workflow_id":"adjacency","command":"python3 examples/walkthrough.py --workflow adjacency"},
+    {"workflow_id":"adjacency-batch","command":"python3 examples/walkthrough.py --workflow adjacency-batch"},
     {"workflow_id":"reach","command":"python3 examples/walkthrough.py --workflow reach"},
     {"workflow_id":"path","command":"python3 examples/walkthrough.py --workflow path"},
     {"workflow_id":"components","command":"python3 examples/walkthrough.py --workflow components"},
