@@ -41,7 +41,7 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | POST | `G/components` | Optional `kinds`, `budget`; strongly connected groups and directed links |
 | POST | `G/pins` | Holds current state; returns a handle and its revision |
 | DELETE | `G/pins/{handle}` | Releases handle; in-flight reads already resolved may finish |
-| POST | `G/compare` | `from` and `to` handles (empty means head); identity-based difference |
+| POST | `G/compare` | `from` and `to` handles (empty means head); identity difference, optionally per-field detail |
 | GET | `G/image` | Format, SHA-256 digest and base64 payload for the chosen revision |
 | PUT | `G/image` | Image envelope; installs a new graph at 1 and returns source and installed summaries |
 
@@ -87,6 +87,42 @@ uses 300000; exhaustion rejects the whole query. `limit` for lookup and
 adjacency defaults to 100, capped at 1000. It limits returned rows, not
 matching count or budget charge. A valid no-route result is `found:false`;
 that is different from a missing endpoint or a query that ran out of budget.
+
+### Comparing revisions
+
+`POST G/compare` resolves `from` and `to` from one same-graph pair; an empty
+handle means the head at the moment of the request. The default result keeps
+the summary shape: `from`, `to`, `vertices` and `arcs` with `added`, `removed`
+and `updated` IDs, plus `schema_changed`. Pin the views you care about,
+because an unpinned handle re-resolves to whatever head exists when the
+request is handled.
+
+Set `detail: true` to add a `detail` object. It holds a `fingerprint` of the
+resolved pair and a page of `changes` in deterministic order: vertices, then
+arcs, each by ID. Each entry has `entity` (`vertex` or `arc`), `id`, `change`
+(`added`, `removed` or `updated`), the structural parts that changed
+(`kind`, `from`, `to`, `cost`) and `properties`. Every structural part and
+property field always emits `before` and `after`; an explicit `null` side
+means the value was absent, so an unset property is distinguishable from an
+explicit empty string, zero or false. An arc that kept its ID but changed
+endpoints therefore shows `from`/`to` before and after instead of looking
+unchanged. Only changed parts are emitted, so an update in place is never
+split into a removal plus an addition.
+
+`fields` narrows property work to the named properties; only those names are
+inspected and returned, so a consumer that needs a few fields does not pay for
+both full graphs. Omitted `fields` means all properties; `"fields": []` means
+structural changes only. Names must be declared by either revision.
+Structural fields (`kind`, `from`, `to`, `cost`) are always derived from the
+resolved pair and are not controlled by `fields`.
+
+Large comparisons are paged. `limit` (default 100, max 1000) bounds the page;
+the response `page` gives `offset`, `returned`, `total`, `truncated` and, when
+more remain, a `cursor`. Send that cursor with the same `from`/`to` to fetch
+the next page. The cursor is bound to the pair fingerprint: if the selected
+revisions changed in between, the request fails with 409 instead of stitching
+pages from two different pairs. A malformed cursor is 400. `fields`, `limit`
+and `cursor` without `detail: true` are rejected.
 
 ### Storage and Verification
 

@@ -53,10 +53,21 @@ func (db *Database) Release(name, handle string) error {
 	return db.held.Release(name, handle)
 }
 
-func (db *Database) Comparison(name, fromHandle, toHandle string) (change.Difference, error) {
-	from, to, err := db.pair(name, fromHandle, toHandle)
+func (db *Database) Comparison(name string, q change.Query) (change.Difference, error) {
+	if !q.Detail && (q.Fields != nil || q.Limit != 0 || q.Cursor != "") {
+		return change.Difference{}, graph.Fail(graph.Invalid, "fields, limit and cursor require detail: true")
+	}
+	if q.Detail && q.Limit < 0 {
+		return change.Difference{}, graph.Fail(graph.Invalid, "detail limit must not be negative")
+	}
+	from, to, err := db.pair(name, q.From, q.To)
 	if err != nil {
 		return change.Difference{}, err
+	}
+	if q.Detail {
+		return change.CompareDetailed(from.graph, to.graph, change.DetailQuery{
+			Fields: q.Fields, Limit: q.Limit, Cursor: q.Cursor,
+		})
 	}
 	return change.Compare(from.graph, to.graph), nil
 }

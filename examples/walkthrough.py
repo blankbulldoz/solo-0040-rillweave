@@ -209,13 +209,55 @@ def expect_pin(base):
 
 def expect_compare(base):
     pin = hold(base)
-    commit(base, 2, [put_vertex("keel", "mid"), {"op": "drop_arc", "id": "brace-alt"}])
+    commit(base, 2, [
+        put_vertex("keel", "mid"), put_vertex("tip", ""), {"op": "drop_arc", "id": "brace-alt"},
+        {"op": "put_arc", "arc": {
+            "id": "brace", "kind": "join", "from": "spar", "to": "keel", "cost": 5,
+            "properties": {},
+        }},
+    ])
     value = request(base, GRAPH + "/compare", "POST", {"from": pin})
     assert (value["from"], value["to"]) == (2, 3) and not value["schema_changed"]
-    assert value["vertices"]["updated"] == ["keel"] and value["arcs"]["removed"] == ["brace-alt"]
+    assert value["vertices"]["updated"] == ["keel", "tip"] and value["arcs"]["removed"] == ["brace-alt"]
+    assert value["arcs"]["updated"] == ["brace"] and "detail" not in value
+
+    full = request(base, GRAPH + "/compare", "POST", {"from": pin, "detail": True})
+    changes = {(c["entity"], c["id"]): c for c in full["detail"]["changes"]}
+    moved = changes[("arc", "brace")]
+    assert moved["from"] == {"before": "hinge", "after": "spar"}
+    assert moved["to"] == {"before": "spar", "after": "keel"} and moved["cost"]["after"] == 5
+    # An unset tag is distinguishable from an explicit empty text value.
+    assert changes[("vertex", "keel")]["properties"] == [
+        {"name": "tag", "before": None, "after": "mid"},
+    ]
+    assert changes[("vertex", "tip")]["properties"] == [
+        {"name": "tag", "before": None, "after": ""},
+    ]
+
+    narrow = request(base, GRAPH + "/compare", "POST", {
+        "from": pin, "detail": True, "fields": ["tag"],
+    })
+    assert all(f["name"] == "tag" for c in narrow["detail"]["changes"]
+               for f in c.get("properties", []))
+    assert any(c.get("properties") for c in narrow["detail"]["changes"])
+    assert narrow["detail"]["fingerprint"] == full["detail"]["fingerprint"]
+
+    first = request(base, GRAPH + "/compare", "POST", {"from": pin, "detail": True, "limit": 1})
+    assert first["detail"]["page"]["truncated"]
+    second = request(base, GRAPH + "/compare", "POST", {
+        "from": pin, "detail": True, "limit": 100, "cursor": first["detail"]["page"]["cursor"],
+    })
+    ids = [(c["entity"], c["id"]) for c in
+           first["detail"]["changes"] + second["detail"]["changes"]]
+    assert len(ids) == len(set(ids)) == first["detail"]["page"]["total"] and not second["detail"]["page"]["truncated"]
+    commit(base, 3, [put_vertex("keel", "east")])
+    request(base, GRAPH + "/compare", "POST", {
+        "from": pin, "detail": True, "cursor": first["detail"]["page"]["cursor"],
+    }, 409, "conflict")
+
     request(base, GRAPHS, "POST", {"name": "pier", "schema": SCHEMA}, 201)
     request(base, GRAPH + "/compare", "POST", {"from": hold(base, GRAPHS + "/pier")}, 404, "not_found")
-    return "logical changes have correct identity and direction; foreign handle rejected"
+    return "summary preserved; field detail, endpoint moves, paging and pair binding verified"
 
 
 def expect_backup(base):
