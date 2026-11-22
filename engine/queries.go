@@ -84,6 +84,12 @@ func (db *Database) Path(name, handle string, q walk.PathRequest) (ReadResult[wa
 	})
 }
 
+func (db *Database) Circuits(name, handle string, q walk.CircuitRequest) (ReadResult[walk.CircuitResult], error) {
+	return query(db, name, handle, func(s *state) (walk.CircuitResult, error) {
+		return walk.Circuits(s.graph, s.adj, q)
+	})
+}
+
 func (db *Database) Components(name, handle string, q walk.ComponentsRequest) (ReadResult[walk.ComponentsResult], error) {
 	return query(db, name, handle, func(s *state) (walk.ComponentsResult, error) {
 		return walk.Components(s.graph, s.adj, q)

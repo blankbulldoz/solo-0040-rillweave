@@ -184,6 +184,50 @@ def expect_path(base):
     return "hop-sensitive prefixes, parallel ties, reverse witness and budget verified"
 
 
+def expect_circuits(base):
+    path = GRAPH + "/circuits"
+    # brace and brace-alt are parallel arcs between the same endpoints, so the
+    # batch checks them separately even though they share their return trail.
+    body = {"kinds": ["join"], "targets": [
+        {"arc": "brace", "lengths": [1, 2, 3]},
+        {"arc": "brace-alt", "lengths": [2]},
+        {"arc": "loop", "lengths": [1]},
+        {"arc": "track", "lengths": [2]},
+    ]}
+    value = request(base, path, "POST", body)["result"]
+    checks = {(c["arc"], c["length"]): c for c in value["checks"]}
+    # A non-loop arc cannot close in one hop; the self-loop uses its real cost.
+    assert checks[("brace", 1)]["status"] == "no_solution"
+    assert checks[("loop", 1)] == {
+        "arc": "loop", "length": 1, "status": "found", "cost": 1,
+        "arcs": ["loop"], "scanned": checks[("loop", 1)]["scanned"],
+    }
+    # Two-hop closure brace (8) + return spar->hinge (2) = 10; the parallel
+    # arc costs the same here, but keeps its own identity in the witness.
+    two = checks[("brace", 2)]
+    assert two["status"] == "found" and two["cost"] == 10 and two["arcs"] == ["brace", "return"]
+    alt = checks[("brace-alt", 2)]
+    assert alt["cost"] == 10 and alt["arcs"] == ["brace-alt", "return"]
+    # Three-hop cheapest closure reuses vertices but never an arc ID:
+    # brace hinge->spar (8), return spar->hinge (2), loop hinge->hinge (1).
+    three = checks[("brace", 3)]
+    assert three["status"] == "found" and three["cost"] == 11 and \
+        three["arcs"] == ["brace", "return", "loop"] and len(set(three["arcs"])) == 3
+    # track is a guide arc, invisible under the join selection: exact no route.
+    assert checks[("track", 2)]["status"] == "no_solution"
+    # A shared allowance that runs out marks only the unfinished pair incomplete
+    # without discarding verdicts already proven earlier in the batch.
+    limited = request(base, path, "POST", {
+        "budget": 2, "targets": [{"arc": "brace", "lengths": [6]},
+                                 {"arc": "brace-alt", "lengths": [6]}],
+    })["result"]["checks"]
+    assert any(c["status"] == "incomplete" for c in limited)
+    assert limited[-1]["scanned"] == 2
+    request(base, path, "POST", {"targets": [{"arc": "missing", "lengths": [2]}]},
+            400, "invalid")
+    return "exact-length closed trails: parallel arcs, self-loop cost, no-arc-reuse, kind filter and budget states verified"
+
+
 def expect_components(base):
     path = GRAPH + "/components"
     value = request(base, path, "POST", {"kinds": ["join"]})["result"]
@@ -255,8 +299,9 @@ def expect_restart(binary, data):
 WORKFLOWS = {
     "catalog": expect_catalog, "commit": expect_commit, "vertex": expect_vertex,
     "lookup": expect_lookup, "adjacency": expect_adjacency, "reach": expect_reach,
-    "path": expect_path, "components": expect_components, "pin": expect_pin,
-    "compare": expect_compare, "backup": expect_backup, "restart": expect_restart,
+    "path": expect_path, "circuits": expect_circuits, "components": expect_components,
+    "pin": expect_pin, "compare": expect_compare, "backup": expect_backup,
+    "restart": expect_restart,
 }
 
 

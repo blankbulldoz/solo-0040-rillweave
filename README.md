@@ -38,6 +38,7 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | POST | `G/adjacency` | `vertex`, optional selection and `limit`; matching arcs by ID |
 | POST | `G/reach` | `root`, `max_hops`, optional selection; vertices with minimum hops |
 | POST | `G/path` | `from`, `to`, `max_hops`, optional selection; cheapest bounded path |
+| POST | `G/circuits` | `targets` of arc IDs with exact `lengths`, shared selection; cheapest closed trail per pair |
 | POST | `G/components` | Optional `kinds`, `budget`; strongly connected groups and directed links |
 | POST | `G/pins` | Holds current state; returns a handle and its revision |
 | DELETE | `G/pins/{handle}` | Releases handle; in-flight reads already resolved may finish |
@@ -88,6 +89,37 @@ adjacency defaults to 100, capped at 1000. It limits returned rows, not
 matching count or budget charge. A valid no-route result is `found:false`;
 that is different from a missing endpoint or a query that ran out of budget.
 
+### Audited closed trails
+
+`POST G/circuits` audits a batch of concrete arc IDs. Each target names an arc
+and up to 32 unique exact `lengths` in [1,32]; a batch holds at most 100
+targets. For every arc/length pair it finds the minimum-cost closed trail
+that starts by replaying the audited arc in its stored direction and returns
+to that arc's start vertex in exactly `length` arcs, the audited arc included.
+Only arcs passing the shared `kinds` selection (empty means all kinds) may
+appear, including the audited arc itself. Traversal is forward only; vertices
+may repeat, but an arc ID may appear at most once, so a short trail cannot be
+padded by walking the same arc again. A one-hop result is only possible for a
+self-loop, priced at that loop's real cost; parallel arcs between the same
+endpoints are audited as distinct identities.
+
+Each check carries one of three statuses. `found` gives the proven minimum
+`cost` and the witnessing `arcs` in walk order, with ties broken by the
+lexicographically smallest arc-ID sequence; `no_solution` means the whole
+trail space was exhausted and no exact-length closure exists; `incomplete`
+means the shared budget was spent before either verdict was proven, so a
+returned witness in that state must not be read as optimal. All pairs draw
+from one `budget` of candidate arc inspections and each check reports its
+cumulative `scanned` count, so batches sharing endpoints or return trails pay
+for their search once per inspection rather than per request. The read honors
+`?view={handle}` and therefore audits the exact revision the caller pins.
+
+```sh
+curl -fsS http://127.0.0.1:8174/rill/v1/graphs/abutment/circuits \
+  -H 'Content-Type: application/json' \
+  -d '{"kinds":["join"],"targets":[{"arc":"brace","lengths":[2,3]}]}'
+```
+
 ### Storage and Verification
 
 A namespace has at most 10000 vertices, 40000 arcs and a 12 MiB image payload;
@@ -109,5 +141,6 @@ python3 examples/walkthrough.py --workflow all
 The Python 3 walkthrough starts temporary server processes with bounded
 synthetic inputs and prints success and rejection evidence. Use
 `--workflow catalog`, `commit`, `vertex`, `lookup`, `adjacency`, `reach`,
-`path`, `components`, `pin`, `compare`, `backup` or `restart` to select one.
+`path`, `circuits`, `components`, `pin`, `compare`, `backup` or `restart` to
+select one.
 Formal tests are deferred; no test runner is required.

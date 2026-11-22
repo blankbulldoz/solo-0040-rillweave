@@ -29,6 +29,7 @@ func New(db *engine.Database) http.Handler {
 	mux.HandleFunc("POST /rill/v1/graphs/{name}/adjacency", reading(db.Adjacent))
 	mux.HandleFunc("POST /rill/v1/graphs/{name}/reach", reading(db.Reach))
 	mux.HandleFunc("POST /rill/v1/graphs/{name}/path", reading(db.Path))
+	mux.HandleFunc("POST /rill/v1/graphs/{name}/circuits", reading(db.Circuits))
 	mux.HandleFunc("POST /rill/v1/graphs/{name}/components", reading(db.Components))
 	mux.HandleFunc("POST /rill/v1/graphs/{name}/pins", s.hold)
 	mux.HandleFunc("DELETE /rill/v1/graphs/{name}/pins/{handle}", s.release)
