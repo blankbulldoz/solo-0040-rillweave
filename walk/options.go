@@ -8,6 +8,7 @@ import (
 const (
 	MaxHops   = 32
 	MaxBudget = 300000
+	MaxVia    = 8
 )
 
 type Selection struct {

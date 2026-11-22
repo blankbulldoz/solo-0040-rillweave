@@ -184,6 +184,74 @@ def expect_path(base):
     return "hop-sensitive prefixes, parallel ties, reverse witness and budget verified"
 
 
+def expect_via(base):
+    ramp, chain = GRAPHS + "/ramp", GRAPHS + "/chain"
+    for name in ("ramp", "chain"):
+        request(base, GRAPHS, "POST", {"name": name, "schema": SCHEMA}, 201)
+    ramp_arcs = [
+        ("sx", "s", "x", 1), ("xy", "x", "y", 1), ("ym", "y", "m", 1),
+        ("sm", "s", "m", 10), ("sn", "s", "n", 1), ("mn", "m", "n", 1),
+        ("nm", "n", "m", 2), ("np", "n", "p", 1), ("pt", "p", "t", 1),
+        ("nt", "n", "t", 100),
+    ]
+    edits = [put_arc(*a) for a in ramp_arcs]
+    edits += [put_vertex(v) for v in ("s", "x", "y", "m", "n", "p", "t")]
+    request(base, ramp + "/commit", "POST", {"base": 1, "edits": edits})
+    edits = []
+    for i in range(19):
+        for k in (1, 2, 3):
+            if i + k <= 19:
+                edits.append(put_arc(f"e{i:02d}{k}", f"f{i:02d}", f"f{i + k:02d}", (i * 3 + k) % 5 + 1))
+    edits += [put_vertex(f"f{i:02d}") for i in range(20)]
+    request(base, chain + "/commit", "POST", {"base": 1, "edits": edits})
+
+    budget = 100  # one fixed candidate limit for every query below
+
+    def route(graph, q, status=200, code=None):
+        return request(base, graph + "/path", "POST", {**q, "budget": budget}, status, code)
+
+    # Cheapest segments taken greedily cost 3+1+100 over 4 hops; the joint
+    # search pays 10 for a one-hop first segment and fits the chain in 4 hops.
+    first = route(ramp, {"from": "s", "to": "m", "max_hops": 4})["result"]
+    assert first["cost"] == 3 and first["arcs"] == ["sn", "nm"]
+    assert route(ramp, {"from": "m", "to": "n", "max_hops": 2})["result"]["cost"] == 1
+    assert route(ramp, {"from": "n", "to": "t", "max_hops": 1})["result"]["cost"] == 100
+    joint = route(ramp, {"from": "s", "to": "t", "via": ["m", "n"], "max_hops": 4})["result"]
+    assert joint["cost"] == 13 and joint["arcs"] == ["sm", "mn", "np", "pt"]
+    assert joint["via_hops"] == [1, 2]
+    tight = route(ramp, {"from": "s", "to": "t", "via": ["m", "n"], "max_hops": 3})["result"]
+    assert tight["cost"] == 111 and tight["arcs"] == ["sm", "mn", "nt"]
+    assert not route(ramp, {"from": "n", "to": "t", "max_hops": 0})["result"]["found"]
+
+    # An early pass satisfies no later stage; a repeated waypoint needs a
+    # distinct later visit; the start position counts as the first visit.
+    early = route(ramp, {"from": "s", "to": "t", "via": ["m", "n"], "max_hops": 6})["result"]
+    assert early["vertices"] == ["s", "n", "m", "n", "p", "t"] and early["via_hops"] == [2, 3]
+    twice = route(ramp, {"from": "s", "to": "t", "via": ["m", "m"], "max_hops": 8})["result"]
+    assert twice["cost"] == 9 and twice["via_hops"] == [2, 4]
+    assert twice["arcs"] == ["sn", "nm", "mn", "nm", "mn", "np", "pt"]
+    assert route(ramp, {"from": "s", "to": "t", "via": ["m", "m"], "max_hops": 6})["result"]["cost"] == 16
+    assert not route(ramp, {"from": "s", "to": "t", "via": ["m", "m"], "max_hops": 4})["result"]["found"]
+    loop = request(base, GRAPH + "/path", "POST", {"from": "hinge", "to": "spar",
+                   "via": ["hinge", "hinge"], "max_hops": 3, "budget": budget})["result"]
+    assert loop["cost"] == 3 and loop["arcs"] == ["loop", "bypass", "cross"]
+    assert loop["via_hops"] == [0, 1]
+
+    many = ["s", "x", "y", "m", "n", "p", "t", "s", "x"]
+    route(ramp, {"from": "s", "to": "t", "via": many, "max_hops": 32}, 400, "invalid")
+    route(ramp, {"from": "s", "to": "t", "via": ["m", "ghost"], "max_hops": 8}, 404, "not_found")
+
+    # The fixed limit proves every dense ramp query; the far-apart chain only
+    # becomes conclusive once the candidate limit is raised.
+    far_q = {"from": "f00", "to": "f19", "via": ["f05", "f10", "f15"], "max_hops": 24}
+    route(chain, far_q, 422, "budget_exhausted")
+    far = request(base, chain + "/path", "POST", far_q)["result"]
+    assert far["cost"] == 19 and far["via_hops"] == [3, 6, 9] and far["scanned"] == 543
+    return ("joint 4-hop chain costs 13 against greedy 104; early pass, repeated waypoint and "
+            "self-loop replay from via_hops; dense queries proven under 100 candidates, "
+            "far chain inconclusive at 100 and proven at 543")
+
+
 def expect_components(base):
     path = GRAPH + "/components"
     value = request(base, path, "POST", {"kinds": ["join"]})["result"]
@@ -255,8 +323,9 @@ def expect_restart(binary, data):
 WORKFLOWS = {
     "catalog": expect_catalog, "commit": expect_commit, "vertex": expect_vertex,
     "lookup": expect_lookup, "adjacency": expect_adjacency, "reach": expect_reach,
-    "path": expect_path, "components": expect_components, "pin": expect_pin,
-    "compare": expect_compare, "backup": expect_backup, "restart": expect_restart,
+    "path": expect_path, "via": expect_via, "components": expect_components,
+    "pin": expect_pin, "compare": expect_compare, "backup": expect_backup,
+    "restart": expect_restart,
 }
 
 

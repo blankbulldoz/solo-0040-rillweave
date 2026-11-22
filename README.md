@@ -37,7 +37,7 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | POST | `G/lookup` | `kind`, `property`, `value`, optional `limit`; IDs and exact count |
 | POST | `G/adjacency` | `vertex`, optional selection and `limit`; matching arcs by ID |
 | POST | `G/reach` | `root`, `max_hops`, optional selection; vertices with minimum hops |
-| POST | `G/path` | `from`, `to`, `max_hops`, optional selection; cheapest bounded path |
+| POST | `G/path` | `from`, `to`, `max_hops`, optional `via` and selection; cheapest bounded walk |
 | POST | `G/components` | Optional `kinds`, `budget`; strongly connected groups and directed links |
 | POST | `G/pins` | Holds current state; returns a handle and its revision |
 | DELETE | `G/pins/{handle}` | Releases handle; in-flight reads already resolved may finish |
@@ -88,6 +88,22 @@ adjacency defaults to 100, capped at 1000. It limits returned rows, not
 matching count or budget charge. A valid no-route result is `found:false`;
 that is different from a missing endpoint or a query that ran out of budget.
 
+### Ordered waypoints
+
+`path` accepts `via`: up to 8 waypoints the walk must visit in order. The
+result is the least-cost walk from `from` to `to` whose vertex sequence
+contains the waypoints at strictly increasing positions, and `max_hops`
+bounds the whole chain, not each segment. One position satisfies exactly one
+waypoint: a repeated waypoint requires a distinct later visit (a self-loop
+counts), and passing a waypoint before its turn satisfies nothing. The start
+position counts for the first waypoint when they coincide. `via_hops` reports
+the hop at which each waypoint was satisfied, so the witness replays exactly:
+`vertices` and `arcs` list every traversal in order, repeats included. Ties
+still prefer fewer arcs, then the lexicographically smallest arc ID sequence.
+A waypoint missing from the revision is not found; `found:false` certifies
+that no walk within the hop limit visits the waypoints in order, which budget
+exhaustion can never claim.
+
 ### Storage and Verification
 
 A namespace has at most 10000 vertices, 40000 arcs and a 12 MiB image payload;
@@ -109,5 +125,5 @@ python3 examples/walkthrough.py --workflow all
 The Python 3 walkthrough starts temporary server processes with bounded
 synthetic inputs and prints success and rejection evidence. Use
 `--workflow catalog`, `commit`, `vertex`, `lookup`, `adjacency`, `reach`,
-`path`, `components`, `pin`, `compare`, `backup` or `restart` to select one.
-Formal tests are deferred; no test runner is required.
+`path`, `via`, `components`, `pin`, `compare`, `backup` or `restart` to
+select one. Formal tests are deferred; no test runner is required.
