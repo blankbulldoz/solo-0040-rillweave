@@ -16,6 +16,7 @@ and `spar` in the examples are synthetic.
 | change | Private staged edit application and logical difference |
 | index | Deterministic adjacency and typed vertex postings |
 | walk | Graph query semantics, expansion budgets and witnesses |
+| compress | Cluster-summary compression, shared witness pool and exact/overview routes |
 | image | Portable versioned encoding, size limit and integrity |
 | disk | Exclusive writer ownership and durable file replacement |
 | view | Bounded handles to immutable read states |
@@ -37,6 +38,8 @@ candidate to validated to published or rejected. A graph revision can move
 from head to detached; explicitly held references remain usable. A handle
 moves from held to released (or disappears on restart). An image moves from
 encoded to verified to installed; malformed images never become a graph.
+A compressed summary moves from built to validated to installed under its own
+namespace and is reopened on restart without the source instance.
 Secondary indexes are rebuilt from the accepted immutable state.
 
 Publishing a head writes and synchronizes a temporary image, replaces the
@@ -59,6 +62,7 @@ until restart. The instance must own its data directory exclusively.
 | pin | Hold and query a fixed revision, then release it | A handle from another graph, an exhausted quota or a released handle is rejected |
 | compare | Compare two views of the same graph by entity identity and schema change | A foreign handle cannot participate |
 | backup | Export one selected revision and import it under an unused name | Malformed images and occupied names do not overwrite existing state |
+| compress | Build a cluster-summary image for a fixed revision, install it and answer exact endpoint routes with replayable witnesses after restart | Pairs outside the agreed set and hop limits are overview only; malformed summaries and occupied names are rejected |
 | restart | Reopen durable graphs and reconstruct indexes | Full corruption fails startup; ephemeral view handles are not recovered |
 
 The graph, revision, traversal constraints and work budget are visible through

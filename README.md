@@ -44,6 +44,12 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | POST | `G/compare` | `from` and `to` handles (empty means head); identity-based difference |
 | GET | `G/image` | Format, SHA-256 digest and base64 payload for the chosen revision |
 | PUT | `G/image` | Image envelope; installs a new graph at 1 and returns source and installed summaries |
+| POST | `G/compress` | Build a compressed cluster-summary image for a fixed revision |
+| PUT | `/rill/v1/compressed` | Install a compressed image durably under its own namespace |
+| GET | `/rill/v1/compressed/{name}` | Compressed manifest, exact endpoint set and compression stats |
+| GET | `/rill/v1/compressed/{name}/image` | Re-export the digest-protected compressed envelope |
+| POST | `/rill/v1/compressed/{name}/route` | Minimum-cost forward query with exact/overview tier and witness |
+| POST | `/rill/v1/compressed/{name}/replay` | Verify a witness offline against retained original arc records |
 
 For example, install a schema and submit an arc before its two vertices in
 the same commit. The `join` rule requires `strut` at both ends.
@@ -88,6 +94,37 @@ adjacency defaults to 100, capped at 1000. It limits returned rows, not
 matching count or budget charge. A valid no-route result is `found:false`;
 that is different from a missing endpoint or a query that ran out of budget.
 
+### Compressed cluster summaries
+
+A fixed revision can be compressed into a separate installable graph built on
+the strongly connected components (ring clusters) of one selected arc-kind
+set. `POST G/compress` takes `{"name","kinds","endpoints","budget"}` and
+returns a digest-protected envelope plus statistics; `PUT /rill/v1/compressed`
+installs it as a durable graph with a `.rillc` head that is reopened on
+restart. The source instance is not needed afterward.
+
+The compressed document keeps every cross-group arc individually (parallel
+arcs of different kinds and costs stay distinct), one boundary vertex per
+cluster entry/exit, and a shared, deduplicated pool of original-arc witness
+sequences for the cheapest intra-cluster routes. Only pairs touching an
+agreed `endpoints` ID receive exact witnesses; internal vertices and
+unreferenced internal arcs never leave the source. This is not a copy of the
+original graph: stats report retained versus original vertex and arc counts
+and the engine reports the payload byte ratio.
+
+A route query returns `tier` `"exact"` only when both vertices are in the
+agreed endpoint set and belong to different clusters; the answer is then the
+true minimum forward cost with a replayable original-arc sequence, or a
+definitive `found:false` no-route. Same-cluster pairs, non-endpoint boundary
+vertices and any positive `max_hops` are answered on the summary but marked
+`tier:"overview"` with an explanatory note; unretained vertices return
+`not_found`. A summary route never splices a cheap arc onto a prefix that
+cannot actually reach it, because routes are stored per concrete
+entry/exit boundary, not per cluster. `POST .../replay` re-walks the retained
+arc records in order, returning the realized vertex chain and cost or the
+first discontinuity, so witnesses remain checkable after the source instance
+is retired.
+
 ### Storage and Verification
 
 A namespace has at most 10000 vertices, 40000 arcs and a 12 MiB image payload;
@@ -103,11 +140,17 @@ uninstalled temp files. See [PROJECT_SPEC.md](PROJECT_SPEC.md).
 ```sh
 go build ./...
 go vet ./...
+go test ./...
 python3 examples/walkthrough.py --workflow all
+python3 examples/compression_walkthrough.py
 ```
 
 The Python 3 walkthrough starts temporary server processes with bounded
 synthetic inputs and prints success and rejection evidence. Use
 `--workflow catalog`, `commit`, `vertex`, `lookup`, `adjacency`, `reach`,
 `path`, `components`, `pin`, `compare`, `backup` or `restart` to select one.
-Formal tests are deferred; no test runner is required.
+The compression walkthrough builds a handoff graph, installs the compressed
+image, proves exact and overview answers against an independent shortest-path
+oracle's semantics, verifies witnesses offline in a clean data directory and
+shows the achieved arc and payload-byte reduction. Formal tests beyond the
+included Go unit tests are deferred; no other test runner is required.

@@ -16,6 +16,7 @@
     {"workflow_id":"pin","command":"python3 examples/walkthrough.py --workflow pin"},
     {"workflow_id":"compare","command":"python3 examples/walkthrough.py --workflow compare"},
     {"workflow_id":"backup","command":"python3 examples/walkthrough.py --workflow backup"},
-    {"workflow_id":"restart","command":"python3 examples/walkthrough.py --workflow restart"}
+    {"workflow_id":"restart","command":"python3 examples/walkthrough.py --workflow restart"},
+    {"workflow_id":"compress","command":"python3 examples/compression_walkthrough.py"}
   ]
 }

@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"rillweave/catalog"
+	"rillweave/compress"
 	"rillweave/disk"
 	"rillweave/graph"
 	"rillweave/image"
@@ -24,12 +25,18 @@ func materialize(g *graph.Graph) *state {
 	return &state{g, index.BuildAdjacency(g), index.BuildPostings(g)}
 }
 
+type compactState struct {
+	doc *compress.Document
+	net *compress.Network
+}
+
 type Database struct {
-	mu    sync.RWMutex
-	disk  *disk.Directory
-	heads map[string]*state
-	held  view.Handles[*state]
-	fault bool
+	mu       sync.RWMutex
+	disk     *disk.Directory
+	heads    map[string]*state
+	compacts map[string]*compactState
+	held     view.Handles[*state]
+	fault    bool
 }
 
 func Open(root string) (*Database, error) {
@@ -37,8 +44,14 @@ func Open(root string) (*Database, error) {
 	if err != nil {
 		return nil, err
 	}
-	db := &Database{disk: dir, heads: make(map[string]*state), held: view.New[*state]()}
+	db := &Database{
+		disk: dir, heads: make(map[string]*state),
+		compacts: make(map[string]*compactState), held: view.New[*state](),
+	}
 	err = dir.RestoreHeads(db.acceptHead)
+	if err == nil {
+		err = dir.RestoreCompacts(db.acceptCompact)
+	}
 	if err != nil {
 		_ = dir.Close()
 		return nil, err
@@ -54,6 +67,9 @@ func (db *Database) acceptHead(name string, encoded image.Envelope) error {
 	if len(db.heads) == MaxGraphs {
 		return fmt.Errorf("graph count exceeds %d", MaxGraphs)
 	}
+	if db.compacts[name] != nil {
+		return fmt.Errorf("name %q is already used by a compressed graph", name)
+	}
 	g, err := checkedImage(encoded)
 	if err != nil {
 		return err
@@ -62,6 +78,28 @@ func (db *Database) acceptHead(name string, encoded image.Envelope) error {
 		return fmt.Errorf("disk name %q does not match image name %q", name, g.Name)
 	}
 	db.heads[name] = materialize(g)
+	return nil
+}
+
+func (db *Database) acceptCompact(name string, encoded compress.Envelope) error {
+	if len(db.compacts) == compress.MaxInstallations {
+		return fmt.Errorf("compressed graph count exceeds %d", compress.MaxInstallations)
+	}
+	if db.heads[name] != nil {
+		return fmt.Errorf("name %q is already used by a regular graph", name)
+	}
+	doc, err := compress.Decode(encoded)
+	if err != nil {
+		return err
+	}
+	if name != doc.Name {
+		return fmt.Errorf("disk name %q does not match compressed image name %q", name, doc.Name)
+	}
+	network, err := compress.Materialize(doc)
+	if err != nil {
+		return err
+	}
+	db.compacts[name] = &compactState{doc, network}
 	return nil
 }
 

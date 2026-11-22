@@ -35,6 +35,12 @@ func New(db *engine.Database) http.Handler {
 	mux.HandleFunc("POST /rill/v1/graphs/{name}/compare", s.compare)
 	mux.HandleFunc("GET /rill/v1/graphs/{name}/image", s.export)
 	mux.HandleFunc("PUT /rill/v1/graphs/{name}/image", s.restore)
+	mux.HandleFunc("POST /rill/v1/graphs/{name}/compress", s.compress)
+	mux.HandleFunc("PUT /rill/v1/compressed", s.installCompact)
+	mux.HandleFunc("GET /rill/v1/compressed/{name}", s.compactOverview)
+	mux.HandleFunc("GET /rill/v1/compressed/{name}/image", s.compactImage)
+	mux.HandleFunc("POST /rill/v1/compressed/{name}/route", s.compactRoute)
+	mux.HandleFunc("POST /rill/v1/compressed/{name}/replay", s.compactReplay)
 	return mux
 }
 
