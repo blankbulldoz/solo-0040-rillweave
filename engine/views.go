@@ -50,7 +50,11 @@ func (db *Database) Release(name, handle string) error {
 	if err := db.available(); err != nil {
 		return err
 	}
-	return db.held.Release(name, handle)
+	if err := db.held.Release(name, handle); err != nil {
+		return err
+	}
+	db.cursors.discardView(name, handle)
+	return nil
 }
 
 func (db *Database) Comparison(name, fromHandle, toHandle string) (change.Difference, error) {

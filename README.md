@@ -34,7 +34,7 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | GET | `G/catalog` | Schema, vertex and arc counts |
 | POST | `G/commit` | `{"base":1,"edits":[...]}`; new head summary |
 | GET | `G/vertices/{id}` | One vertex in the selected revision |
-| POST | `G/lookup` | `kind`, `property`, `value`, optional `limit`; IDs and exact count |
+| POST | `G/lookup` | `kind`, `property` and either `value` (equality) or `range` (ordered); optional `limit`, `after`; IDs and exact count |
 | POST | `G/adjacency` | `vertex`, optional selection and `limit`; matching arcs by ID |
 | POST | `G/reach` | `root`, `max_hops`, optional selection; vertices with minimum hops |
 | POST | `G/path` | `from`, `to`, `max_hops`, optional selection; cheapest bounded path |
@@ -87,6 +87,45 @@ uses 300000; exhaustion rejects the whole query. `limit` for lookup and
 adjacency defaults to 100, capped at 1000. It limits returned rows, not
 matching count or budget charge. A valid no-route result is `found:false`;
 that is different from a missing endpoint or a query that ran out of budget.
+
+### Ordered lookup and continuation
+
+`G/lookup` has two modes on the same typed posting. `value` keeps the original
+equality semantics: typed equality with an exact `matched` count and no
+implicit coercion. `range` reads an ordered window instead:
+
+```json
+{"kind":"strut","property":"gauge","range":{"from":{"value":10,"exclusive":true},"to":{"value":20}},"limit":2}
+```
+
+`from` and `to` are optional typed bounds; `exclusive` (default `false`) drops
+values equal to that bound. Only declared `int` and `text` properties are
+orderable; a range over a `bool` property or a bound of the wrong kind is
+`invalid`. Vertices that do not store the property are never in a range, and
+empty text is a stored value, not an absent one. Results are ordered by the
+actual integer or text value first and then by vertex ID, so equal values stay
+distinct and totally ordered.
+
+`result.ordered` is the window, `result.matched` the exact count of the whole
+range for that snapshot, and `result.truncated` whether more rows exist. When
+`truncated` is true the response also carries `result.next`, an opaque
+continuation. Send it back as `after` (with the same `kind`/`property`, and
+optionally the same `range`) to read the next page:
+
+```json
+{"kind":"strut","property":"gauge","range":{...},"limit":2,"after":"<result.next>"}
+```
+
+A continuation is bound to the namespace and to the snapshot that produced the
+first page, whether that was the head or a `?view=` pin. It is single-use: each
+page returns a fresh `next`, and replaying a spent token is `not_found`. Commits
+between pages do not move the continuation onto the new head; it keeps reading
+the same revision, and the response's `revision` stays that of the snapshot. An
+expired, evicted, released-with-its-pin, foreign-graph or different-range token
+is rejected with a `not_found` or `invalid` error rather than returning a page
+that silently skips or repeats rows — restart the lookup from a fresh `range`.
+Cursors are process-local, bounded and not durable across restart, like view
+handles.
 
 ### Storage and Verification
 

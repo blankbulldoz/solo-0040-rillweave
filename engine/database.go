@@ -25,11 +25,12 @@ func materialize(g *graph.Graph) *state {
 }
 
 type Database struct {
-	mu    sync.RWMutex
-	disk  *disk.Directory
-	heads map[string]*state
-	held  view.Handles[*state]
-	fault bool
+	mu      sync.RWMutex
+	disk    *disk.Directory
+	heads   map[string]*state
+	held    view.Handles[*state]
+	cursors *continuations
+	fault   bool
 }
 
 func Open(root string) (*Database, error) {
@@ -37,7 +38,10 @@ func Open(root string) (*Database, error) {
 	if err != nil {
 		return nil, err
 	}
-	db := &Database{disk: dir, heads: make(map[string]*state), held: view.New[*state]()}
+	db := &Database{
+		disk: dir, heads: make(map[string]*state), held: view.New[*state](),
+		cursors: newContinuations(),
+	}
 	err = dir.RestoreHeads(db.acceptHead)
 	if err != nil {
 		_ = dir.Close()

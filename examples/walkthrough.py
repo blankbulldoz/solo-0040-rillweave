@@ -15,7 +15,10 @@ ROOT = Path(__file__).resolve().parents[1]
 GRAPHS = "/rill/v1/graphs"
 GRAPH = GRAPHS + "/abutment"
 SCHEMA = {
-    "vertices": {"strut": {"properties": {"tag": {"kind": "text", "unique": True}}}},
+    "vertices": {"strut": {"properties": {
+        "tag": {"kind": "text", "unique": True},
+        "gauge": {"kind": "int"},
+    }}},
     "arcs": {
         "join": {"from": "strut", "to": "strut"},
         "guide": {"from": "strut", "to": "strut"},
@@ -68,8 +71,12 @@ def request(base, path, verb="GET", body=None, status=200, code=None):
     return value
 
 
-def put_vertex(key, tag=None):
-    props = {"tag": tag} if tag is not None else {}
+def put_vertex(key, tag=None, gauge=None):
+    props = {}
+    if tag is not None:
+        props["tag"] = tag
+    if gauge is not None:
+        props["gauge"] = gauge
     return {"op": "put_vertex", "vertex": {"id": key, "kind": "strut", "properties": props}}
 
 
@@ -96,7 +103,8 @@ def seed(base):
         put_arc("bypass", "hinge", "keel", 1), put_arc("cross", "keel", "spar", 1),
         put_arc("stem", "spar", "tip", 1), put_arc("return", "spar", "hinge", 2),
         put_arc("loop", "hinge", "hinge", 1), put_arc("track", "tip", "hinge", 1, "guide"),
-        put_vertex("hinge", "north"), put_vertex("keel"), put_vertex("spar", "south"), put_vertex("tip"),
+        put_vertex("hinge", "north", 10), put_vertex("keel"),
+        put_vertex("spar", "south", 10), put_vertex("tip", None, 20),
     ])
     assert result == {"name": "abutment", "revision": 2, "vertices": 4, "arcs": 8}
 
@@ -146,7 +154,94 @@ def expect_lookup(base):
     assert request(base, path, "POST", q)["result"]["ids"] == ["hinge"]
     assert request(base, path, "POST", {**q, "value": ""})["result"]["matched"] == 0
     request(base, path, "POST", {**q, "value": False}, 400, "invalid")
-    return "typed posting correct; absent tag is not empty text"
+
+    # Sparse equality keeps its exact count even when the window is tiny.
+    dense = {"kind": "strut", "property": "gauge", "value": 10, "limit": 1}
+    posting = request(base, path, "POST", dense)["result"]
+    assert posting["ids"] == ["hinge"] and posting["matched"] == 2 and posting["truncated"]
+
+    # Ordered range: typed value order, then vertex ID for the 10/10 tie.
+    rng = {"from": {"value": 5}}
+    first = request(base, path, "POST", {
+        "kind": "strut", "property": "gauge", "range": rng, "limit": 2,
+    })
+    page = first["result"]
+    assert page["ordered"] == ["hinge", "spar"] and page["matched"] == 3 and page["truncated"]
+    assert first["revision"] == 2 and page["range"] == rng
+
+    # A commit between pages must not move the continuation.
+    commit(base, 2, [put_vertex("tip", None, 6), put_vertex("wing", "west", 7)])
+    older = request(base, path, "POST", {
+        "kind": "strut", "property": "gauge", "range": rng, "limit": 2, "after": page["next"],
+    })
+    assert older["revision"] == 2 and older["result"]["ordered"] == ["tip"], older
+    assert not older["result"]["truncated"]
+
+    # A fresh lookup at the newer head continues through it consistently.
+    current = request(base, path, "POST", {
+        "kind": "strut", "property": "gauge", "range": rng, "limit": 2,
+    })
+    assert current["revision"] == 3 and current["result"]["ordered"] == ["tip", "wing"]
+    assert current["result"]["matched"] == 4
+    tail = request(base, path, "POST", {
+        "kind": "strut", "property": "gauge", "range": rng, "limit": 2,
+        "after": current["result"]["next"],
+    })
+    assert tail["revision"] == 3 and tail["result"]["ordered"] == ["hinge", "spar"]
+    assert not tail["result"]["truncated"] and "next" not in tail["result"]
+    request(base, path, "POST", {
+        "kind": "strut", "property": "gauge", "range": rng,
+        "after": current["result"]["next"],
+    }, 404, "not_found")  # spent tokens cannot be replayed
+
+    # Absent properties never enter a range.
+    assert request(base, path, "POST", {
+        "kind": "strut", "property": "gauge", "range": {"to": {"value": 5}},
+    })["result"]["matched"] == 0
+
+    # Exclusive bounds drop the endpoint; text ranges compare by code point.
+    exclusive = request(base, path, "POST", {
+        "kind": "strut", "property": "gauge",
+        "range": {"from": {"value": 5, "exclusive": True}, "to": {"value": 10, "exclusive": True}},
+    })["result"]
+    assert exclusive["ordered"] == ["tip", "wing"] and exclusive["matched"] == 2
+    by_tag = request(base, path, "POST", {
+        "kind": "strut", "property": "tag", "range": {"from": {"value": "n"}},
+    })["result"]
+    assert by_tag["ordered"] == ["hinge", "spar", "wing"] and by_tag["matched"] == 3
+
+    # A pin keeps later pages on that pin's revision, and release ends them.
+    pin = hold(base)
+    pinned = request(base, path + "?view=" + pin, "POST", {
+        "kind": "strut", "property": "gauge", "range": rng, "limit": 2,
+    })
+    assert pinned["revision"] == 3 and pinned["result"]["ordered"] == ["tip", "wing"]
+    commit(base, 3, [put_vertex("rope", "east", 8)])
+    older_page = request(base, path + "?view=" + pin, "POST", {
+        "kind": "strut", "property": "gauge", "range": rng, "limit": 2,
+        "after": pinned["result"]["next"],
+    })
+    assert older_page["revision"] == 3 and older_page["result"]["ordered"] == ["hinge", "spar"]
+    request(base, GRAPH + "/pins/" + pin, "DELETE", status=204)
+    request(base, path + "?view=" + pin, "POST", {
+        "kind": "strut", "property": "gauge", "range": rng, "after": older_page["result"].get("next", "x"),
+    }, 404, "not_found")
+
+    # Wrong-typed or unordered bounds and foreign cursors are rejected.
+    request(base, path, "POST", {
+        "kind": "strut", "property": "tag", "range": {"from": {"value": 3}},
+    }, 400, "invalid")
+    request(base, path, "POST", {
+        "kind": "strut", "property": "gauge", "value": 1, "range": {"from": {"value": 5}},
+    }, 400, "invalid")
+    request(base, GRAPHS, "POST", {"name": "pier", "schema": SCHEMA}, 201)
+    fresh_cursor = request(base, path, "POST", {
+        "kind": "strut", "property": "gauge", "range": rng, "limit": 1,
+    })["result"]["next"]
+    request(base, GRAPHS + "/pier/lookup", "POST", {
+        "kind": "strut", "property": "gauge", "range": rng, "after": fresh_cursor,
+    }, 404, "not_found")
+    return "equality counts intact; ordered ranges and snapshot-bound continuation verified"
 
 
 def expect_adjacency(base):

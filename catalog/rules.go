@@ -48,6 +48,34 @@ func propertyRules(kind string, properties map[string]graph.PropertyRule, unique
 	return nil
 }
 
+// LookupRangeRule validates an ordered range over one vertex property. Only int
+// and text properties have a meaningful value order; boolean properties stay
+// equality-only. Bounds may be omitted, and both bounds use the declared kind.
+func LookupRangeRule(s graph.Schema, kind, property string, r graph.Range) (graph.Kind, error) {
+	rule, ok := s.Vertices[kind]
+	if !ok {
+		return "", graph.Fail(graph.Invalid, "unknown vertex kind %q", kind)
+	}
+	field, ok := rule.Properties[property]
+	if !ok {
+		return "", graph.Fail(graph.Invalid, "unknown property %q on vertex kind %q", property, kind)
+	}
+	switch field.Kind {
+	case graph.Int, graph.Text:
+	default:
+		return "", graph.Fail(graph.Invalid, "property %q of kind %q does not support ordered ranges", property, kind)
+	}
+	for _, bound := range []*graph.Bound{r.From, r.To} {
+		if bound == nil {
+			continue
+		}
+		if bound.Value.Kind != field.Kind || !bound.Value.Valid() {
+			return "", graph.Fail(graph.Invalid, "property %q range bound requires %s", property, field.Kind)
+		}
+	}
+	return field.Kind, nil
+}
+
 func LookupRule(s graph.Schema, kind, property string, value graph.Scalar) error {
 	rule, ok := s.Vertices[kind]
 	if !ok {
