@@ -35,6 +35,8 @@ func New(db *engine.Database) http.Handler {
 	mux.HandleFunc("POST /rill/v1/graphs/{name}/compare", s.compare)
 	mux.HandleFunc("GET /rill/v1/graphs/{name}/image", s.export)
 	mux.HandleFunc("PUT /rill/v1/graphs/{name}/image", s.restore)
+	mux.HandleFunc("POST /rill/v1/graphs/{name}/handoffs", s.handoff)
+	mux.HandleFunc("GET /rill/v1/graphs/{name}/handoffs/latest", s.handoffManifest)
 	return mux
 }
 

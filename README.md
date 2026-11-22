@@ -44,6 +44,8 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | POST | `G/compare` | `from` and `to` handles (empty means head); identity-based difference |
 | GET | `G/image` | Format, SHA-256 digest and base64 payload for the chosen revision |
 | PUT | `G/image` | Image envelope; installs a new graph at 1 and returns source and installed summaries |
+| POST | `G/handoffs` | Region request; installs a derived graph under an unused target name and returns its provenance manifest |
+| GET | `G/handoffs/latest` | Handoff manifest of a derived graph at the chosen revision |
 
 For example, install a schema and submit an arc before its two vertices in
 the same commit. The `join` rule requires `strut` at both ends.
@@ -88,6 +90,40 @@ adjacency defaults to 100, capped at 1000. It limits returned rows, not
 matching count or budget charge. A valid no-route result is `found:false`;
 that is different from a missing endpoint or a query that ran out of budget.
 
+### Handoff regions
+
+`POST G/handoffs` hands a bounded slice of the selected revision to another
+team as its own named graph. The request gives `target`, nonempty `roots`,
+optional allowed `kinds`, `max_hops` in [0,32], `mode` and an optional
+`budget` (candidate inspections, including arcs rejected by the kind
+selection). Traversal is forward only, using the same fixed view for the
+whole derivation.
+
+The region is every real vertex reachable from a root within the hop limit
+along allowed-kind arcs, at its minimum hop distance. Every original
+allowed-kind arc whose endpoints both belong to the region is delivered with
+its original ID, direction, cost and properties; parallel arcs and self-loops
+keep their individual identities. The derived graph reuses the source schema
+and installs at revision 1 with only complete vertex records.
+
+Allowed-kind arcs leaving the region are boundary crossings. In
+`mode:"references"` (the default) the outside endpoint stays out of the
+installable graph and is recorded in the manifest as a reference containing
+only its ID plus every original inbound arc; its kind and properties are not
+exported. Several crossing arcs into the same endpoint share one reference but
+remain separate arc records. In `mode:"closure"` the real endpoint is absorbed
+and expansion continues under the same rules, possibly beyond the original
+hop limit, until no crossing remains.
+
+The receipt and `GET G/handoffs/latest` return the manifest: source graph,
+source revision, mode, roots, kinds, hop limit, scanned count, the sorted
+region IDs and the boundary references. That is how the receiving team tells
+original records from converted references. Capacity, budget, validation,
+image-size and namespace checks all run before the durable write, so a
+rejected handoff leaves the source graph and target name untouched. Errors use
+the same codes as other endpoints (400 invalid input, 404 missing source
+vertex, 409 occupied target, 422 budget or installable capacity).
+
 ### Storage and Verification
 
 A namespace has at most 10000 vertices, 40000 arcs and a 12 MiB image payload;
@@ -109,5 +145,5 @@ python3 examples/walkthrough.py --workflow all
 The Python 3 walkthrough starts temporary server processes with bounded
 synthetic inputs and prints success and rejection evidence. Use
 `--workflow catalog`, `commit`, `vertex`, `lookup`, `adjacency`, `reach`,
-`path`, `components`, `pin`, `compare`, `backup` or `restart` to select one.
-Formal tests are deferred; no test runner is required.
+`path`, `components`, `pin`, `compare`, `backup`, `handoff` or `restart` to
+select one. Formal tests are deferred; no test runner is required.

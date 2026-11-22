@@ -56,6 +56,10 @@ type Graph struct {
 	Schema   Schema            `json:"schema"`
 	Vertices map[string]Vertex `json:"vertices"`
 	Arcs     map[string]Arc    `json:"arcs"`
+	// Handoff is set only on graphs derived by the handoff workflow. Ordinary
+	// graphs omit it; the manifest documents the boundary references that the
+	// installable state intentionally does not contain.
+	Handoff *Handoff `json:"handoff,omitempty"`
 }
 
 func New(name string, schema Schema) *Graph {

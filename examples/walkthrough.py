@@ -231,6 +231,51 @@ def expect_backup(base):
     return "pinned image restored under new identity; damaged image and overwrite rejected"
 
 
+def expect_handoff(base):
+    path = GRAPH + "/handoffs"
+    # Zero-hop region keeps only the root; every other allowed target becomes a
+    # reference. The two parallel brace arcs keep separate identities and the
+    # self-loop stays an original arc because it ends inside the region.
+    zero = request(base, path, "POST", {
+        "target": "patch-zero", "roots": ["hinge"], "kinds": ["join"], "max_hops": 0,
+    }, 201)
+    assert zero["installed"] == {"name": "patch-zero", "revision": 1, "vertices": 1, "arcs": 1}
+    refs = {row["vertex"]: [a["id"] for a in row["incoming_arcs"]]
+            for row in zero["manifest"]["references"]}
+    assert refs == {"keel": ["bypass"], "spar": ["brace", "brace-alt"]}, refs
+    # A reference endpoint resolves to no record, so no properties cross the boundary.
+    request(base, GRAPHS + "/patch-zero/vertices/spar", status=404, code="not_found")
+    manifest = request(base, GRAPHS + "/patch-zero/handoffs/latest")["result"]
+    assert manifest["source"] == "abutment" and manifest["mode"] == "references"
+
+    one = request(base, path, "POST", {
+        "target": "patch-one", "roots": ["hinge"], "kinds": ["join"], "max_hops": 1,
+    }, 201)["manifest"]
+    assert one["region"] == ["hinge", "keel", "spar"]
+    assert [r["vertex"] for r in one["references"]] == ["tip"]
+    assert [a["id"] for a in one["references"][0]["incoming_arcs"]] == ["stem"]
+
+    closed = request(base, path, "POST", {
+        "target": "patch-closed", "roots": ["hinge"], "kinds": ["join"],
+        "max_hops": 1, "mode": "closure",
+    }, 201)
+    assert closed["manifest"]["references"] == []
+    assert closed["installed"] == {"name": "patch-closed", "revision": 1, "vertices": 4, "arcs": 7}
+    # guide is not an allowed kind, so its arc never extends either region.
+    request(base, GRAPHS + "/patch-closed/adjacency", "POST",
+            {"vertex": "tip", "kinds": ["guide"]})
+
+    request(base, path, "POST", {
+        "target": "patch-broke", "roots": ["hinge"], "kinds": ["join"], "max_hops": 32, "budget": 1,
+    }, 422, "budget_exhausted")
+    request(base, path, "POST", {
+        "target": "patch-one", "roots": ["hinge"], "max_hops": 1,
+    }, 409, "conflict")
+    request(base, GRAPHS + "/patch-broke/catalog", status=404, code="not_found")
+    assert catalog(base)["revision"] == 2
+    return "region, parallel-arc references, closure, provenance and rejected installs verified"
+
+
 def blocked_start(binary, data, reason):
     result = subprocess.run(command(binary, data), capture_output=True, text=True, timeout=8)
     assert result.returncode != 0 and reason in result.stderr, result
@@ -256,7 +301,8 @@ WORKFLOWS = {
     "catalog": expect_catalog, "commit": expect_commit, "vertex": expect_vertex,
     "lookup": expect_lookup, "adjacency": expect_adjacency, "reach": expect_reach,
     "path": expect_path, "components": expect_components, "pin": expect_pin,
-    "compare": expect_compare, "backup": expect_backup, "restart": expect_restart,
+    "compare": expect_compare, "backup": expect_backup, "handoff": expect_handoff,
+    "restart": expect_restart,
 }
 
 
