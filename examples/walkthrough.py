@@ -184,6 +184,113 @@ def expect_path(base):
     return "hop-sensitive prefixes, parallel ties, reverse witness and budget verified"
 
 
+def expect_corridor(base):
+    path = GRAPH + "/corridor"
+    arcs = {
+        "brace": ("hinge", "spar", 8), "brace-alt": ("hinge", "spar", 8),
+        "bypass": ("hinge", "keel", 1), "cross": ("keel", "spar", 1),
+        "stem": ("spar", "tip", 1), "return": ("spar", "hinge", 2),
+        "loop": ("hinge", "hinge", 1), "track": ("tip", "hinge", 1),
+    }
+
+    def replay(witness, direction, max_hops, max_cost):
+        assert len(witness) <= max_hops and sum(arcs[a][2] for a in witness) <= max_cost
+        vertex = query_from
+        for arc_id in witness:
+            source, target, _ = arcs[arc_id]
+            if direction == "in":
+                source, target = target, source
+            assert source == vertex, (vertex, arc_id)
+            vertex = target
+        assert vertex == query_to
+
+    query_from, query_to = "hinge", "tip"
+    q = {"from": query_from, "to": query_to, "max_hops": 2, "max_cost": 9, "kinds": ["join"]}
+    value = request(base, path, "POST", q)["result"]
+    assert value["status"] == "complete" and not value["undecided"]
+    assert [row["arc"] for row in value["included"]] == ["brace", "brace-alt", "stem"]
+    assert value["excluded"] == ["bypass", "cross", "loop", "return"]
+    for row in value["included"]:
+        replay(row["witness"], "out", 2, 9)
+    assert next(r for r in value["included"] if r["arc"] == "stem")["witness"] == ["brace", "stem"]
+
+    # The splice trap: bypass+cross fits the hops alone and brace+stem fits the
+    # cost alone, but no single walk satisfies both limits, so the corridor is
+    # empty rather than a join of two independently feasible prefixes.
+    tight = request(base, path, "POST", {**q, "max_cost": 6})["result"]
+    assert tight["status"] == "complete" and not tight["included"]
+    assert tight["excluded"] == ["brace", "brace-alt", "bypass", "cross", "loop", "return", "stem"]
+
+    # Repeated vertices are legal: cycles can extend a walk as long as both
+    # limits still hold. At H=3/C=3 the self-loop stays excluded because paying
+    # for it leaves too little budget for the cheapest hinge-to-tip continuation;
+    # one extra hop and one extra cost admit the loop detour.
+    cyclic = request(base, path, "POST", {**q, "max_hops": 3, "max_cost": 3})["result"]
+    assert [r["arc"] for r in cyclic["included"]] == ["bypass", "cross", "stem"]
+    assert cyclic["excluded"] == ["brace", "brace-alt", "loop", "return"]
+    for row in cyclic["included"]:
+        replay(row["witness"], "out", 3, 3)
+    repeat = request(base, path, "POST", {**q, "max_hops": 4, "max_cost": 4})["result"]
+    assert [r["arc"] for r in repeat["included"]] == ["bypass", "cross", "loop", "stem"]
+    loop_witness = next(r for r in repeat["included"] if r["arc"] == "loop")["witness"]
+    assert loop_witness == ["loop", "bypass", "cross", "stem"]
+    replay(loop_witness, "out", 4, 4)
+
+    # Budget exhaustion never fabricates exclusions: proven inclusions stay
+    # included with replayable witnesses and everything else is undecided.
+    cut = request(base, path, "POST", {**q, "max_hops": 3, "max_cost": 3, "budget": 7})["result"]
+    assert cut["status"] == "budget_exhausted" and not cut["excluded"]
+    assert cut["undecided"] == ["brace", "brace-alt", "loop", "return"]
+    assert [r["arc"] for r in cut["included"]] == ["bypass", "cross", "stem"]
+    assert cut["scanned"] == 7
+    for row in cut["included"]:
+        replay(row["witness"], "out", 3, 3)
+
+    # Reverse selection keeps arc identities and costs while following the
+    # reversed adjacency: tip reaches hinge backwards through spar.
+    reverse = request(base, path, "POST", {
+        "from": "tip", "to": "hinge", "max_hops": 2, "max_cost": 9,
+        "kinds": ["join"], "direction": "in",
+    })["result"]
+    assert [r["arc"] for r in reverse["included"]] == ["brace", "brace-alt", "stem"]
+    assert reverse["excluded"] == ["bypass", "cross", "loop", "return"]
+    query_from, query_to = "tip", "hinge"
+    for row in reverse["included"]:
+        replay(row["witness"], "in", 2, 9)
+    assert next(r for r in reverse["included"] if r["arc"] == "stem")["witness"] == ["stem", "brace"]
+
+    # The cost gate still binds one whole reverse walk: stem+cross+bypass is the
+    # only three-hop route, so the cheaper pair remains excluded at cost 3.
+    reverse_tight = request(base, path, "POST", {
+        "from": "tip", "to": "hinge", "max_hops": 3, "max_cost": 3,
+        "kinds": ["join"], "direction": "in",
+    })["result"]
+    assert [r["arc"] for r in reverse_tight["included"]] == ["bypass", "cross", "stem"]
+    assert reverse_tight["excluded"] == ["brace", "brace-alt", "loop", "return"]
+    for row in reverse_tight["included"]:
+        replay(row["witness"], "in", 3, 3)
+
+    # Same endpoint: only walks that leave and return inside both limits count.
+    same = request(base, path, "POST", {
+        "from": "hinge", "to": "hinge", "max_hops": 2, "max_cost": 2,
+        "kinds": ["join"],
+    })["result"]
+    assert [r["arc"] for r in same["included"]] == ["loop"]
+    query_from, query_to = "hinge", "hinge"
+    replay(same["included"][0]["witness"], "out", 2, 2)
+
+    # The corridor is read from one fixed revision; later commits do not change it.
+    pin = hold(base)
+    pinned = request(base, path + "?view=" + pin, "POST", q)["result"]
+    commit(base, 2, [{"op": "drop_arc", "id": "loop"}])
+    request(base, GRAPH + "/pins/" + pin, "DELETE", status=204)
+    assert pinned["status"] == "complete" and "loop" in pinned["excluded"]
+
+    request(base, path, "POST", {**q, "max_cost": 0}, 400, "invalid")
+    request(base, path, "POST", {**q, "from": "missing"}, 404, "not_found")
+    return "arc corridor proven by single-walk evidence; truncation, replay and fixed revision verified"
+
+
 def expect_components(base):
     path = GRAPH + "/components"
     value = request(base, path, "POST", {"kinds": ["join"]})["result"]
@@ -255,8 +362,9 @@ def expect_restart(binary, data):
 WORKFLOWS = {
     "catalog": expect_catalog, "commit": expect_commit, "vertex": expect_vertex,
     "lookup": expect_lookup, "adjacency": expect_adjacency, "reach": expect_reach,
-    "path": expect_path, "components": expect_components, "pin": expect_pin,
-    "compare": expect_compare, "backup": expect_backup, "restart": expect_restart,
+    "path": expect_path, "corridor": expect_corridor, "components": expect_components,
+    "pin": expect_pin, "compare": expect_compare, "backup": expect_backup,
+    "restart": expect_restart,
 }
 
 

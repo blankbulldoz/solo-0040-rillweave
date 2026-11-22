@@ -38,6 +38,7 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | POST | `G/adjacency` | `vertex`, optional selection and `limit`; matching arcs by ID |
 | POST | `G/reach` | `root`, `max_hops`, optional selection; vertices with minimum hops |
 | POST | `G/path` | `from`, `to`, `max_hops`, optional selection; cheapest bounded path |
+| POST | `G/corridor` | `from`, `to`, `max_hops`, `max_cost`, optional `samples` and selection; arcs lying on one feasible source-to-target walk |
 | POST | `G/components` | Optional `kinds`, `budget`; strongly connected groups and directed links |
 | POST | `G/pins` | Holds current state; returns a handle and its revision |
 | DELETE | `G/pins/{handle}` | Releases handle; in-flight reads already resolved may finish |
@@ -88,6 +89,25 @@ adjacency defaults to 100, capped at 1000. It limits returned rows, not
 matching count or budget charge. A valid no-route result is `found:false`;
 that is different from a missing endpoint or a query that ran out of budget.
 
+### Path corridors
+
+`G/corridor` exports, for the chosen revision, every selected arc that belongs
+to at least one source-to-target walk satisfying both limits at once: the arc
+count is within `max_hops` and the sum of the stored arc costs is within the
+positive integer `max_cost`. Walks may revisit vertices. An arc that is merely
+reachable from the source but cannot continue toward the target is not part of
+the corridor, and a prefix that fits one limit is never combined with a suffix
+that fits the other unless one single walk satisfies both.
+
+The response partitions the selected arcs into `included` (each with an arc
+ID and, within the `samples` window, a complete `witness` arc sequence that
+replays from `from` to `to`), `excluded` (no feasible walk contains the arc)
+and `undecided`. `status` is `complete` when the expansion budget covered the
+whole selected subgraph and `budget_exhausted` when it did not: the included
+arcs remain provable and carry witnesses, no arc is then reported excluded,
+and every other selected arc is `undecided`. `scanned` reports the candidate
+arc inspections charged, including kind rejections and repeated visits.
+
 ### Storage and Verification
 
 A namespace has at most 10000 vertices, 40000 arcs and a 12 MiB image payload;
@@ -109,5 +129,6 @@ python3 examples/walkthrough.py --workflow all
 The Python 3 walkthrough starts temporary server processes with bounded
 synthetic inputs and prints success and rejection evidence. Use
 `--workflow catalog`, `commit`, `vertex`, `lookup`, `adjacency`, `reach`,
-`path`, `components`, `pin`, `compare`, `backup` or `restart` to select one.
+`path`, `corridor`, `components`, `pin`, `compare`, `backup` or `restart` to
+select one.
 Formal tests are deferred; no test runner is required.
