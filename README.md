@@ -39,7 +39,8 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | POST | `G/reach` | `root`, `max_hops`, optional selection; vertices with minimum hops |
 | POST | `G/path` | `from`, `to`, `max_hops`, optional selection; cheapest bounded path |
 | POST | `G/components` | Optional `kinds`, `budget`; strongly connected groups and directed links |
-| POST | `G/pins` | Holds current state; returns a handle and its revision |
+| POST | `G/pins` | Holds current state; optional `ttl_millis` selects a finite lease; returns a handle, its revision and the expiry |
+| POST | `G/pins/{handle}/renew` | Replaces or extends the lease; an empty body keeps the remaining lease |
 | DELETE | `G/pins/{handle}` | Releases handle; in-flight reads already resolved may finish |
 | POST | `G/compare` | `from` and `to` handles (empty means head); identity-based difference |
 | GET | `G/image` | Format, SHA-256 digest and base64 payload for the chosen revision |
@@ -93,8 +94,19 @@ that is different from a missing endpoint or a query that ran out of budget.
 A namespace has at most 10000 vertices, 40000 arcs and a 12 MiB image payload;
 a commit has at most 2000 edits. At most 32 namespaces and 16 simultaneous
 pins exist per process; pins are not durable, and two pins can hold the same
-revision. Use a successful image export for an offline representation of a
-pinned revision. Export does not freeze ongoing writes. In a restore, the
+revision. A pin without `ttl_millis` stays until it is explicitly released, so
+existing clients keep their behaviour. A finite `ttl_millis` (one second to 24
+hours) stamps an `expires_at` deadline: the handle is reclaimed lazily on the
+next registry operation once the deadline passes, freeing its slot for a new
+applicant, and no longer resolves for reads, comparisons or exports. Renewing
+with a fresh `ttl_millis` extends the lease before expiry; an empty renewal
+preserves the remaining lease. Reads, two-view comparisons and exports resolve
+their view once and keep it for the whole operation, so a release or expiry
+after the start cannot switch or reclaim the revision underneath them. When
+several handles share a revision, releasing one handle only frees the data
+once every handle and in-flight read has retired. Use a successful image
+export for an offline representation of a pinned revision. Export does not
+freeze ongoing writes. In a restore, the
 local graph identity and revision are new; the original graph remains intact.
 Copying an existing `.rill` file into a fresh data directory instead reopens
 that durable graph as-is. Startup checks all active head files and ignores

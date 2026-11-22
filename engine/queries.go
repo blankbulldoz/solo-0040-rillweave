@@ -14,15 +14,19 @@ type ReadResult[T any] struct {
 }
 
 func query[T any](db *Database, name, handle string, f func(*state) (T, error)) (ReadResult[T], error) {
-	s, err := db.read(name, handle)
+	var out ReadResult[T]
+	err := db.read(name, handle, func(s *state) error {
+		result, queryErr := f(s)
+		if queryErr != nil {
+			return queryErr
+		}
+		out = ReadResult[T]{s.graph.Name, s.graph.Revision, result}
+		return nil
+	})
 	if err != nil {
 		return ReadResult[T]{}, err
 	}
-	result, err := f(s)
-	if err != nil {
-		return ReadResult[T]{}, err
-	}
-	return ReadResult[T]{s.graph.Name, s.graph.Revision, result}, nil
+	return out, nil
 }
 
 type CatalogResult struct {

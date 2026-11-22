@@ -101,8 +101,85 @@ def seed(base):
     assert result == {"name": "abutment", "revision": 2, "vertices": 4, "arcs": 8}
 
 
-def hold(base, graph=GRAPH):
-    return request(base, graph + "/pins", "POST", status=201)["handle"]
+def hold(base, graph=GRAPH, ttl_millis=None):
+    body = None if ttl_millis is None else {"ttl_millis": ttl_millis}
+    return request(base, graph + "/pins", "POST", body, 201)
+
+
+def hold_token(base, graph=GRAPH, ttl_millis=None):
+    return hold(base, graph, ttl_millis)["handle"]
+
+
+def renew(base, handle, ttl_millis=None, graph=GRAPH, status=200, code=None):
+    body = None if ttl_millis is None else {"ttl_millis": ttl_millis}
+    return request(base, graph + "/pins/" + handle + "/renew", "POST", body, status, code)
+
+
+def expect_pin(base):
+    pin = hold_token(base)
+    query = "?view=" + pin
+    commit(base, 2, [put_vertex("wing", "west")])
+    assert catalog(base, query)["revision"] == 2 and catalog(base)["revision"] == 3
+    request(base, GRAPH + "/pins/" + pin, "DELETE", status=204)
+    request(base, GRAPH + "/catalog" + query, status=404, code="not_found")
+    return "head advances independently; released pin no longer resolves"
+
+
+def expect_lease(base):
+    import concurrent.futures
+    import time
+
+    # An indefinite pin keeps the original explicit-release behaviour and
+    # carries no lease fields.
+    forever = hold(base)
+    assert "expires_at" not in forever and "ttl_millis" not in forever
+    # Finite leases advertise their deadline; invalid durations are rejected.
+    bad = request(base, GRAPH + "/pins", verb="POST", body={"ttl_millis": 50}, status=400, code="invalid")
+    assert "ttl" in bad["details"]
+    short = hold(base, ttl_millis=1000)
+    assert short["ttl_millis"] == 1000 and short["expires_at"]
+    pin = short["handle"]
+    # Renewal pushes the deadline forward; without a ttl the remaining lease
+    # is preserved while the handle stays usable.
+    time.sleep(0.6)
+    renewed = renew(base, pin, 1000)
+    assert renewed["ttl_millis"] == 1000 and renewed["expires_at"] > short["expires_at"]
+    renew(base, pin)
+    assert catalog(base, "?view=" + pin)["revision"] == 2
+    # Fill the remaining slots; a forgotten finite pin must not block a new
+    # applicant once its deadline passes, because expiry is reclaimed lazily.
+    occupied = [forever["handle"], pin]
+    for _ in range(14):
+        occupied.append(hold_token(base, ttl_millis=1000))
+    request(base, GRAPH + "/pins", "POST", status=422, code="budget_exhausted")
+    time.sleep(1.1)  # let the fourteen one-second leases lapse
+    fresh = hold_token(base)  # reclaims an expired slot instead of failing
+    assert catalog(base, "?view=" + fresh)["revision"] == 2
+    # A handle that was never released but has expired resolves as not found
+    # and cannot be renewed.
+    request(base, GRAPH + "/catalog?view=" + occupied[2], status=404, code="not_found")
+    renew(base, occupied[2], 1000, status=404, code="not_found")
+    # Two pins may share one revision; retiring one handle must not disturb
+    # reads through the other.
+    sibling = hold_token(base, ttl_millis=1000)
+    request(base, GRAPH + "/pins/" + fresh, "DELETE", status=204)
+    assert catalog(base, "?view=" + sibling)["revision"] == 2
+    # Concurrent renewals and releases never corrupt reads: every surviving
+    # handle keeps resolving and every retired one reports not found.
+    tokens = [hold_token(base, ttl_millis=60000) for _ in range(6)]
+
+    def traffic(token):
+        for _ in range(20):
+            reply = renew(base, token, 60000)
+            assert catalog(base, "?view=" + reply["handle"])["revision"] == 2
+        request(base, GRAPH + "/pins/" + token, "DELETE", status=204)
+        request(base, GRAPH + "/catalog?view=" + token, status=404, code="not_found")
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
+        list(pool.map(traffic, tokens))
+    request(base, GRAPH + "/pins/" + sibling, "DELETE", status=204)
+    request(base, GRAPH + "/pins/" + forever["handle"], "DELETE", status=204)
+    return "finite leases expire and free slots lazily; renewal holds and shared revisions survive sibling release under concurrency"
 
 
 def expect_catalog(base):
@@ -132,7 +209,7 @@ def expect_commit(base):
 
 
 def expect_vertex(base):
-    pin = hold(base)
+    pin = hold_token(base)
     commit(base, 2, [put_vertex("wing", "west")])
     value = request(base, GRAPH + "/vertices/wing")
     assert value["revision"] == 3 and value["result"]["id"] == "wing"
@@ -197,29 +274,19 @@ def expect_components(base):
     return "selected kind changes strong connectivity; directed quotient link verified"
 
 
-def expect_pin(base):
-    pin = hold(base)
-    query = "?view=" + pin
-    commit(base, 2, [put_vertex("wing", "west")])
-    assert catalog(base, query)["revision"] == 2 and catalog(base)["revision"] == 3
-    request(base, GRAPH + "/pins/" + pin, "DELETE", status=204)
-    request(base, GRAPH + "/catalog" + query, status=404, code="not_found")
-    return "head advances independently; released pin no longer resolves"
-
-
 def expect_compare(base):
-    pin = hold(base)
+    pin = hold_token(base)
     commit(base, 2, [put_vertex("keel", "mid"), {"op": "drop_arc", "id": "brace-alt"}])
     value = request(base, GRAPH + "/compare", "POST", {"from": pin})
     assert (value["from"], value["to"]) == (2, 3) and not value["schema_changed"]
     assert value["vertices"]["updated"] == ["keel"] and value["arcs"]["removed"] == ["brace-alt"]
     request(base, GRAPHS, "POST", {"name": "pier", "schema": SCHEMA}, 201)
-    request(base, GRAPH + "/compare", "POST", {"from": hold(base, GRAPHS + "/pier")}, 404, "not_found")
+    request(base, GRAPH + "/compare", "POST", {"from": hold_token(base, GRAPHS + "/pier")}, 404, "not_found")
     return "logical changes have correct identity and direction; foreign handle rejected"
 
 
 def expect_backup(base):
-    pin = hold(base)
+    pin = hold_token(base)
     commit(base, 2, [put_vertex("wing")])
     envelope = request(base, GRAPH + "/image?view=" + pin)
     path = GRAPHS + "/pier/image"
@@ -239,7 +306,7 @@ def blocked_start(binary, data, reason):
 def expect_restart(binary, data):
     with serve(binary, data) as base:
         seed(base)
-        pin = hold(base)
+        pin = hold_token(base)
         commit(base, 2, [put_vertex("keel", "mid")])
         blocked_start(binary, data, "directory lock")
     with serve(binary, data) as base:
@@ -255,7 +322,7 @@ def expect_restart(binary, data):
 WORKFLOWS = {
     "catalog": expect_catalog, "commit": expect_commit, "vertex": expect_vertex,
     "lookup": expect_lookup, "adjacency": expect_adjacency, "reach": expect_reach,
-    "path": expect_path, "components": expect_components, "pin": expect_pin,
+    "path": expect_path, "components": expect_components, "pin": expect_pin, "lease": expect_lease,
     "compare": expect_compare, "backup": expect_backup, "restart": expect_restart,
 }
 

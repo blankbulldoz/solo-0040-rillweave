@@ -35,9 +35,11 @@ undeclared properties, explicit nulls and type coercion are not supported.
 The graph namespace moves from absent to installed. An edit set moves from
 candidate to validated to published or rejected. A graph revision can move
 from head to detached; explicitly held references remain usable. A handle
-moves from held to released (or disappears on restart). An image moves from
-encoded to verified to installed; malformed images never become a graph.
-Secondary indexes are rebuilt from the accepted immutable state.
+moves from held to released, is reclaimed when its lease expires (or
+disappears on restart); a finite lease can be renewed before its deadline.
+An image moves from encoded to verified to installed; malformed images never
+become a graph. Secondary indexes are rebuilt from the accepted immutable
+state.
 
 Publishing a head writes and synchronizes a temporary image, replaces the
 node's durable graph file and synchronizes the directory. A failure after the
@@ -56,7 +58,7 @@ until restart. The instance must own its data directory exclusively.
 | reach | Return minimum hop distances, including the selected root | Insufficient expansion budget returns an error, never a complete-looking prefix |
 | path | Return least total cost within the hop limit and the witnessing arcs | No route within the chosen subgraph is distinct from budget exhaustion |
 | components | Return strongly connected components and directed links between groups | Weak connectivity and parallel arcs do not merge or multiply component links |
-| pin | Hold and query a fixed revision, then release it | A handle from another graph, an exhausted quota or a released handle is rejected |
+| pin | Hold and query a fixed revision, then release it or let a bounded lease expire | A handle from another graph, an exhausted quota, a released or expired handle is rejected; a read, comparison or export already resolved keeps its revision until it finishes |
 | compare | Compare two views of the same graph by entity identity and schema change | A foreign handle cannot participate |
 | backup | Export one selected revision and import it under an unused name | Malformed images and occupied names do not overwrite existing state |
 | restart | Reopen durable graphs and reconstruct indexes | Full corruption fails startup; ephemeral view handles are not recovered |

@@ -28,7 +28,7 @@ type Database struct {
 	mu    sync.RWMutex
 	disk  *disk.Directory
 	heads map[string]*state
-	held  view.Handles[*state]
+	held  *view.Handles[*state]
 	fault bool
 }
 
