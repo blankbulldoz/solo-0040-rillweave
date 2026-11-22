@@ -38,7 +38,7 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | POST | `G/adjacency` | `vertex`, optional selection and `limit`; matching arcs by ID |
 | POST | `G/reach` | `root`, `max_hops`, optional selection; vertices with minimum hops |
 | POST | `G/path` | `from`, `to`, `max_hops`, optional selection; cheapest bounded path |
-| POST | `G/components` | Optional `kinds`, `budget`; strongly connected groups and directed links |
+| POST | `G/components` | Optional `kinds`, `budget`, focus `vertices` and `mode`; strongly connected groups and directed links with arc evidence |
 | POST | `G/pins` | Holds current state; returns a handle and its revision |
 | DELETE | `G/pins/{handle}` | Releases handle; in-flight reads already resolved may finish |
 | POST | `G/compare` | `from` and `to` handles (empty means head); identity-based difference |
@@ -79,10 +79,20 @@ sequence. `kinds` empty means all. `max_hops` in [0,32] includes zero hops
 starting vertex cannot beat the empty path. Ties prefer fewer arcs, then
 the lexicographically smallest arc ID sequence. Reach lists vertices in
 deterministic breadth-first discovery order. Components use only forward
-links for grouping and give each group its smallest vertex ID.
+links for grouping and give each group its smallest vertex ID. Every directed
+link between groups lists the original arc IDs that witness it. A `vertices`
+list focuses the query on those vertices and then requires an explicit
+`mode`: `induced` groups only the subgraph induced by the listed vertices,
+while `relay` still groups the whole graph — unlisted vertices may relay
+membership — but displays only listed members. Under `relay` a group takes
+its smallest displayed vertex as ID, groups with no displayed member are
+omitted, and a link is drawn only when a witnessing arc joins two displayed
+vertices, so hidden relays and empty outside groups never produce
+direct-looking links. Budget exhaustion names the determination it
+interrupted: component grouping or link evidence.
 
 `budget` counts candidate arc inspections, including candidates rejected by
-kind selection and repeated inspections during graph search. Zero or omitted
+kind or focus selection and repeated inspections during graph search. Zero or omitted
 uses 300000; exhaustion rejects the whole query. `limit` for lookup and
 adjacency defaults to 100, capped at 1000. It limits returned rows, not
 matching count or budget charge. A valid no-route result is `found:false`;

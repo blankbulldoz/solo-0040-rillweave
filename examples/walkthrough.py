@@ -191,10 +191,35 @@ def expect_components(base):
         {"id": "hinge", "vertices": ["hinge", "keel", "spar"]},
         {"id": "tip", "vertices": ["tip"]},
     ]
-    assert value["links"] == [{"from": "hinge", "to": "tip"}]
+    assert value["links"] == [{"from": "hinge", "to": "tip", "arcs": ["stem"]}]
     assert len(request(base, path, "POST", {})["result"]["groups"]) == 1
-    request(base, path, "POST", {"budget": 1}, 422, "budget_exhausted")
-    return "selected kind changes strong connectivity; directed quotient link verified"
+    focus = {"vertices": ["keel", "spar"], "kinds": ["join"]}
+    induced = request(base, path, "POST", {**focus, "mode": "induced"})["result"]
+    assert induced["groups"] == [
+        {"id": "keel", "vertices": ["keel"]},
+        {"id": "spar", "vertices": ["spar"]},
+    ]
+    assert induced["links"] == [{"from": "keel", "to": "spar", "arcs": ["cross"]}]
+    relay = request(base, path, "POST", {**focus, "mode": "relay"})["result"]
+    assert relay["groups"] == [{"id": "keel", "vertices": ["keel", "spar"]}]
+    assert relay["links"] == []
+    hidden = request(base, path, "POST", {
+        "vertices": ["keel", "tip"], "kinds": ["join"], "mode": "relay",
+    })["result"]
+    assert hidden["groups"] == [
+        {"id": "keel", "vertices": ["keel"]},
+        {"id": "tip", "vertices": ["tip"]},
+    ]
+    assert hidden["links"] == []
+    request(base, path, "POST", focus, 400, "invalid")
+    request(base, path, "POST", {"mode": "relay"}, 400, "invalid")
+    request(base, path, "POST", {"vertices": ["keel"], "mode": "wide"}, 400, "invalid")
+    request(base, path, "POST", {"vertices": ["ghost"], "mode": "relay"}, 404, "not_found")
+    problem = request(base, path, "POST", {"budget": 1}, 422, "budget_exhausted")
+    assert "grouping" in problem["details"], problem
+    problem = request(base, path, "POST", {"budget": 16}, 422, "budget_exhausted")
+    assert "link evidence" in problem["details"], problem
+    return "focus modes split induced grouping from relay display; links carry arc evidence; budget names the stalled determination"
 
 
 def expect_pin(base):
