@@ -231,6 +231,93 @@ def expect_backup(base):
     return "pinned image restored under new identity; damaged image and overwrite rejected"
 
 
+def restore_command(base, path, envelope, expect=None, operation=None, status=200, code=None):
+    body = dict(envelope)
+    if expect is not None:
+        body["expect"] = expect
+    if operation is not None:
+        body["operation"] = operation
+    return request(base, path, "PUT", body, status, code)
+
+
+def expect_overwrite(base):
+    source = request(base, GRAPH + "/image")
+    path = GRAPHS + "/pier/image"
+    legacy = request(base, path, "PUT", source, 201)
+    assert legacy["installed"]["revision"] == 1 and "operation" not in legacy
+
+    # An import that carries an identifier is retryable even at a free name.
+    fresh = restore_command(base, GRAPHS + "/jetty/image", source, operation="import-1", status=201)
+    assert fresh["installed"]["revision"] == 1 and "expected" not in fresh
+    assert restore_command(base, GRAPHS + "/jetty/image", source, operation="import-1") == fresh
+    assert request(base, GRAPHS + "/jetty/catalog")["revision"] == 1
+    restore_command(base, GRAPHS + "/jetty/image", source, expect=1, operation="import-1",
+                   status=409, code="conflict")
+
+    # A view held on the target survives the replacement at its old revision.
+    target_pin = hold(base, GRAPHS + "/pier")
+
+    # An occupied name now needs an explicit expected head.
+    restore_command(base, path, source, status=409, code="conflict")
+    restore_command(base, path, source, expect=0, operation="deploy-1", status=409, code="conflict")
+    first = restore_command(base, path, source, expect=1, operation="deploy-1")
+    assert first["operation"] == "deploy-1" and first["expected"] == 1
+    assert first["installed"]["revision"] == 2 and first["source"]["revision"] == 2
+    assert request(base, GRAPHS + "/pier/catalog?view=" + target_pin)["revision"] == 1
+
+    # A lost response is reconciled by replaying the same operation: the
+    # recorded receipt returns and the current head does not move.
+    replay = restore_command(base, path, source, expect=1, operation="deploy-1")
+    assert replay == first
+    assert request(base, GRAPHS + "/pier/catalog")["revision"] == 2
+
+    # The same identifier cannot switch image or expected head while retained.
+    restore_command(base, path, source, expect=2, operation="deploy-1", status=409, code="conflict")
+    wrong = {**source, "sha256": "f" * 64}
+    restore_command(base, path, wrong, expect=1, operation="deploy-1", status=409, code="conflict")
+    # A damaged retransmission fails verification instead of replaying.
+    damaged = {**source, "payload": source["payload"][:-4] + "AAAA"}
+    restore_command(base, path, damaged, expect=1, operation="deploy-1", status=400, code="invalid")
+    request(base, path, "PUT", {**source, "expect": 1, "operation": "x" * 129}, 400, "invalid")
+
+    # Another client commits on top of the replacement; the old integer
+    # precondition stays stale because replacement never rewinds the head.
+    commit_path = GRAPHS + "/pier/commit"
+    request(base, commit_path, "POST", {"base": 2, "edits": [put_vertex("wing", "east")]})
+    request(base, commit_path, "POST", {"base": 1, "edits": [put_vertex("keel")]}, 409, "conflict")
+    assert restore_command(base, path, source, expect=1, operation="deploy-1") == first
+    assert request(base, GRAPHS + "/pier/catalog")["revision"] == 3
+
+    # Only the latest successful overwrite is retained; a newer one makes the
+    # older retry fail explicitly instead of replaying.
+    second = restore_command(base, path, source, expect=3, operation="deploy-2")
+    assert second["installed"]["revision"] == 4
+    restore_command(base, path, source, expect=1, operation="deploy-1", status=409, code="conflict")
+    plain = restore_command(base, path, source, expect=4)
+    assert plain["installed"]["revision"] == 5 and "operation" not in plain
+    restore_command(base, path, source, expect=3, operation="deploy-2", status=409, code="conflict")
+    return "conditional overwrite, idempotent replay, conflict on reuse and one retained receipt"
+
+
+def expect_restore_restart(binary, data):
+    with serve(binary, data) as base:
+        seed(base)
+        source = request(base, GRAPH + "/image")
+        path = GRAPHS + "/pier/image"
+        restore_command(base, path, source, operation="nightly", status=201)
+        receipt = restore_command(base, path, source, expect=1, operation="try-1")
+        assert receipt["installed"]["revision"] == 2
+    with serve(binary, data) as base:
+        # A normal commit coexists with the retained receipt, and the replay
+        # still returns the original source and installed revision.
+        assert request(base, GRAPHS + "/pier/catalog")["revision"] == 2
+        request(base, GRAPHS + "/pier/commit", "POST", {"base": 2, "edits": [put_vertex("wing")]})
+        assert restore_command(base, path, source, expect=1, operation="try-1") == receipt
+        assert request(base, GRAPHS + "/pier/catalog")["revision"] == 3
+        restore_command(base, path, source, expect=3, operation="try-1", status=409, code="conflict")
+    return "lost response, later commit and restart all reconcile the same operation receipt"
+
+
 def blocked_start(binary, data, reason):
     result = subprocess.run(command(binary, data), capture_output=True, text=True, timeout=8)
     assert result.returncode != 0 and reason in result.stderr, result
@@ -256,22 +343,26 @@ WORKFLOWS = {
     "catalog": expect_catalog, "commit": expect_commit, "vertex": expect_vertex,
     "lookup": expect_lookup, "adjacency": expect_adjacency, "reach": expect_reach,
     "path": expect_path, "components": expect_components, "pin": expect_pin,
-    "compare": expect_compare, "backup": expect_backup, "restart": expect_restart,
+    "compare": expect_compare, "backup": expect_backup, "overwrite": expect_overwrite,
+    "restart": expect_restart,
 }
+
+MULTI_SERVER = {"restart": expect_restart, "overwrite-restart": expect_restore_restart}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--workflow", choices=["all", *WORKFLOWS], default="all")
+    parser.add_argument("--workflow", choices=["all", *WORKFLOWS, "overwrite-restart"], default="all")
     choice = parser.parse_args().workflow
     with tempfile.TemporaryDirectory(prefix="rillweave-") as temp:
         tmp = Path(temp)
         binary = tmp / "rillweaved"
         subprocess.run(["go", "build", "-o", binary, "./cmd/rillweaved"], cwd=ROOT, check=True, timeout=90)
-        for name in WORKFLOWS if choice == "all" else [choice]:
+        names = [*WORKFLOWS, "overwrite-restart"] if choice == "all" else [choice]
+        for name in names:
             data = tmp / name
-            if name == "restart":
-                output = expect_restart(binary, data)
+            if name in MULTI_SERVER:
+                output = MULTI_SERVER[name](binary, data)
             else:
                 with serve(binary, data) as base:
                     seed(base)

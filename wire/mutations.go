@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"rillweave/change"
+	"rillweave/engine"
 	"rillweave/graph"
 	"rillweave/image"
 )
@@ -42,11 +43,22 @@ func (s service) release(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s service) restore(w http.ResponseWriter, r *http.Request) {
-	var e image.Envelope
-	if err := decode(w, r, &e, image.MaxImage); err != nil {
+	var q struct {
+		image.Envelope
+		Operation string  `json:"operation,omitempty"`
+		Expect    *uint64 `json:"expect,omitempty"`
+	}
+	if err := decode(w, r, &q, image.MaxImage); err != nil {
 		result(w, nil, err, 0)
 		return
 	}
-	receipt, err := s.db.Restore(r.PathValue("name"), e)
-	result(w, receipt, err, http.StatusCreated)
+	receipt, err := s.db.Restore(engine.RestoreRequest{
+		Name: r.PathValue("name"), Envelope: q.Envelope,
+		Operation: q.Operation, Expected: q.Expect,
+	})
+	status := http.StatusOK
+	if receipt.Created {
+		status = http.StatusCreated
+	}
+	result(w, receipt, err, status)
 }

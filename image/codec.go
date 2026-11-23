@@ -34,14 +34,23 @@ func Encode(g *graph.Graph) (Envelope, error) {
 	return Envelope{Format, checksum(payload), payload}, nil
 }
 
-func Decode(e Envelope) (*graph.Graph, error) {
+// Verify checks the envelope format, payload bounds and byte digest without
+// interpreting the payload.
+func Verify(e Envelope) error {
 	switch {
 	case e.Format != Format:
-		return nil, graph.Fail(graph.Invalid, "unsupported graph image format %d", e.Format)
+		return graph.Fail(graph.Invalid, "unsupported graph image format %d", e.Format)
 	case len(e.Payload) == 0 || len(e.Payload) > MaxPayload:
-		return nil, graph.Fail(graph.Invalid, "image payload is empty or exceeds the size limit")
+		return graph.Fail(graph.Invalid, "image payload is empty or exceeds the size limit")
 	case e.Digest != checksum(e.Payload):
-		return nil, graph.Fail(graph.Invalid, "image digest mismatch")
+		return graph.Fail(graph.Invalid, "image digest mismatch")
+	}
+	return nil
+}
+
+func Decode(e Envelope) (*graph.Graph, error) {
+	if err := Verify(e); err != nil {
+		return nil, err
 	}
 	var g graph.Graph
 	if err := ReadJSON(bytes.NewReader(e.Payload), &g); err != nil {

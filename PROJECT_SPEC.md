@@ -39,6 +39,15 @@ moves from held to released (or disappears on restart). An image moves from
 encoded to verified to installed; malformed images never become a graph.
 Secondary indexes are rebuilt from the accepted immutable state.
 
+A restore to a free name installs at revision 1 and never replaces state. A
+restore to an occupied name replaces the complete graph at the next local
+revision, but only when the caller states the expected head; the old revision
+never becomes a valid write base again. A retry that carries an operation
+identifier and matches the retained receipt replays that receipt without
+publishing; changed image bytes or expected head under a retained identifier
+conflict. One receipt is retained per graph, replaced only by a later
+successful overwrite, and ordinary commits neither create nor erase it.
+
 Publishing a head writes and synchronizes a temporary image, replaces the
 node's durable graph file and synchronizes the directory. A failure after the
 rename but before confirmed durability makes further graph operations fail
@@ -58,7 +67,7 @@ until restart. The instance must own its data directory exclusively.
 | components | Return strongly connected components and directed links between groups | Weak connectivity and parallel arcs do not merge or multiply component links |
 | pin | Hold and query a fixed revision, then release it | A handle from another graph, an exhausted quota or a released handle is rejected |
 | compare | Compare two views of the same graph by entity identity and schema change | A foreign handle cannot participate |
-| backup | Export one selected revision and import it under an unused name | Malformed images and occupied names do not overwrite existing state |
+| backup | Export one selected revision and import it under an unused name or replace an occupied one under `expect` | Malformed images, occupied names without `expect` and stale heads do not overwrite existing state |
 | restart | Reopen durable graphs and reconstruct indexes | Full corruption fails startup; ephemeral view handles are not recovered |
 
 The graph, revision, traversal constraints and work budget are visible through

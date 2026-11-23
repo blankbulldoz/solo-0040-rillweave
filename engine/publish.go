@@ -66,7 +66,11 @@ func (db *Database) publish(g *graph.Graph) (Summary, error) {
 	if err != nil {
 		return Summary{}, err
 	}
-	next := materialize(g)
+	return db.installEncoded(g, encoded)
+}
+
+func (db *Database) installEncoded(g *graph.Graph, encoded image.Envelope) (Summary, error) {
+	next := materialize(g, encoded.Digest)
 	uncertain, err := db.disk.Write(g.Name, encoded)
 	if err != nil {
 		log.Printf("publish graph %q revision %d: %v", g.Name, g.Revision, err)
@@ -78,28 +82,4 @@ func (db *Database) publish(g *graph.Graph) (Summary, error) {
 	}
 	db.heads[g.Name] = next
 	return summary(g), nil
-}
-
-type RestoreResult struct {
-	Installed Summary `json:"installed"`
-	Source    Summary `json:"source"`
-}
-
-func (db *Database) Restore(name string, encoded image.Envelope) (RestoreResult, error) {
-	g, err := checkedImage(encoded)
-	if err != nil {
-		return RestoreResult{}, err
-	}
-	source := summary(g)
-	db.mu.Lock()
-	defer db.mu.Unlock()
-	if err := db.mayInstall(name); err != nil {
-		return RestoreResult{}, err
-	}
-	g.Name, g.Revision = name, 1
-	installed, err := db.publish(g)
-	if err != nil {
-		return RestoreResult{}, err
-	}
-	return RestoreResult{installed, source}, nil
 }

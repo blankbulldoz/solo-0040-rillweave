@@ -43,7 +43,7 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | DELETE | `G/pins/{handle}` | Releases handle; in-flight reads already resolved may finish |
 | POST | `G/compare` | `from` and `to` handles (empty means head); identity-based difference |
 | GET | `G/image` | Format, SHA-256 digest and base64 payload for the chosen revision |
-| PUT | `G/image` | Image envelope; installs a new graph at 1 and returns source and installed summaries |
+| PUT | `G/image` | Image envelope; installs a free name at 1 or conditionally overwrites an occupied name |
 
 For example, install a schema and submit an arc before its two vertices in
 the same commit. The `join` rule requires `strut` at both ends.
@@ -94,11 +94,34 @@ A namespace has at most 10000 vertices, 40000 arcs and a 12 MiB image payload;
 a commit has at most 2000 edits. At most 32 namespaces and 16 simultaneous
 pins exist per process; pins are not durable, and two pins can hold the same
 revision. Use a successful image export for an offline representation of a
-pinned revision. Export does not freeze ongoing writes. In a restore, the
-local graph identity and revision are new; the original graph remains intact.
-Copying an existing `.rill` file into a fresh data directory instead reopens
-that durable graph as-is. Startup checks all active head files and ignores
-uninstalled temp files. See [PROJECT_SPEC.md](PROJECT_SPEC.md).
+pinned revision. Export does not freeze ongoing writes. In a restore to a free
+name, the local graph identity and revision are new; the original graph remains
+intact. Copying an existing `.rill` file into a fresh data directory instead
+reopens that durable graph as-is. Startup checks all active head files and
+ignores uninstalled temp files. See [PROJECT_SPEC.md](PROJECT_SPEC.md).
+
+#### Conditional overwrite
+
+`PUT G/image` installs a free name at revision 1 and rejects an occupied name
+unless the body adds `expect`: the head revision the caller observed. With
+`expect` present and equal to the current head, the source image replaces the
+entire graph at the next local revision; a stale `expect`, a missing one, or a
+target that does not exist is a conflict. Held views keep the revision they
+pinned, and an older integer revision can never become a valid write base
+again through a replacement.
+
+An optional `operation` (nonempty UTF-8, at most 128 bytes) turns the install
+or overwrite into a retryable action. The response records `operation`,
+`expected` (absent for a fresh install), `source` and `installed`. The most
+recent successful restore action retains a durable receipt: repeating the same
+`operation` with the same image digest and expected head returns that receipt
+without moving the head, including after a lost response, later ordinary
+commits and a restart. Reusing a retained `operation` with a different image
+or expected head is a conflict. A newer successful overwrite replaces the
+receipt, after which the earlier `operation` fails explicitly; an overwrite
+without `operation` also clears it. Ordinary commits never touch the receipt.
+The response is `201` for a fresh installation and `200` for an overwrite or
+replay.
 
 ```sh
 go build ./...
@@ -109,5 +132,6 @@ python3 examples/walkthrough.py --workflow all
 The Python 3 walkthrough starts temporary server processes with bounded
 synthetic inputs and prints success and rejection evidence. Use
 `--workflow catalog`, `commit`, `vertex`, `lookup`, `adjacency`, `reach`,
-`path`, `components`, `pin`, `compare`, `backup` or `restart` to select one.
-Formal tests are deferred; no test runner is required.
+`path`, `components`, `pin`, `compare`, `backup`, `overwrite`, `restart` or
+`overwrite-restart` to select one. Formal tests are deferred; no test runner is
+required.
