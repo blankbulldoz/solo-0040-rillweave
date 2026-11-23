@@ -111,3 +111,25 @@ synthetic inputs and prints success and rejection evidence. Use
 `--workflow catalog`, `commit`, `vertex`, `lookup`, `adjacency`, `reach`,
 `path`, `components`, `pin`, `compare`, `backup` or `restart` to select one.
 Formal tests are deferred; no test runner is required.
+
+## Path verification
+
+`examples/path_verify.py` checks `POST G/path` against an independent,
+exhaustive walk enumerator rather than against the implementation. Each
+returned witness is re-validated arc by arc against the stored graph, so a
+rewrite of the search is judged by the published contract. It covers cheap
+prefixes that cannot finish within the hop limit, equal-cost witnesses with
+different lengths and arc-ID sequences, parallel arcs, reversed steps that keep
+their original arc ID and cost, zero-hop results, a deterministic kind sweep,
+and export/install parity of the same witnesses. Budget exhaustion is reported
+as its own outcome, never as `found:false` or a path answer.
+
+```sh
+python3 examples/path_verify.py --artifacts ./path-artifacts
+```
+
+Each failure prints a hand-checkable expectation, the enumerated walks, the
+exact request and the actual response, and writes a JSON artifact that
+`python3 examples/path_verify.py --replay ARTIFACT` reproduces on a fresh
+database. `--tie-policy any` accepts any minimum-cost witness and is intended
+only for a deliberate change to tie-breaking.
