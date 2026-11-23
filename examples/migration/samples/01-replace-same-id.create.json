@@ -1,0 +1,1 @@
+{"name":"mig01","schema":{"vertices":{"counter":{"properties":{"seq":{"kind":"int","required":true},"note":{"kind":"text"},"flag":{"kind":"bool"}}}},"arcs":{"link":{"from":"counter","to":"counter","properties":{"weight":{"kind":"int"}}}}}}

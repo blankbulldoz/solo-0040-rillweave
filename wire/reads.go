@@ -5,7 +5,7 @@ import "net/http"
 func reading[Q, R any](read func(string, string, Q) (R, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var q Q
-		if err := decode(w, r, &q, maxRequest); err != nil {
+		if err := decode(w, r, &q, MaxRequest); err != nil {
 			result(w, nil, err, 0)
 			return
 		}
@@ -29,7 +29,7 @@ func (s service) compare(w http.ResponseWriter, r *http.Request) {
 		From string `json:"from,omitempty"`
 		To   string `json:"to,omitempty"`
 	}
-	if err := decode(w, r, &q, maxRequest); err != nil {
+	if err := decode(w, r, &q, MaxRequest); err != nil {
 		result(w, nil, err, 0)
 		return
 	}

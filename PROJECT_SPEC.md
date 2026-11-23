@@ -21,6 +21,7 @@ and `spar` in the examples are synthetic.
 | view | Bounded handles to immutable read states |
 | engine | Head publication, pinned access and restore semantics |
 | wire | HTTP requests, bounded decoding and domain error mapping |
+| sdk | v1 to v2 commit request conversion and size verdicts |
 
 ## Rules and lifecycles
 

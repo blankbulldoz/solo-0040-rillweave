@@ -1,0 +1,1 @@
+{"name":"mig03","schema":{"vertices":{"record":{"properties":{"serial":{"kind":"int","unique":true},"label":{"kind":"text"},"marked":{"kind":"bool"}}}}}}

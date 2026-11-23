@@ -13,7 +13,7 @@ func (s service) create(w http.ResponseWriter, r *http.Request) {
 		Name   string       `json:"name"`
 		Schema graph.Schema `json:"schema"`
 	}
-	if err := decode(w, r, &q, maxRequest); err != nil {
+	if err := decode(w, r, &q, MaxRequest); err != nil {
 		result(w, nil, err, 0)
 		return
 	}
@@ -23,11 +23,28 @@ func (s service) create(w http.ResponseWriter, r *http.Request) {
 
 func (s service) commit(w http.ResponseWriter, r *http.Request) {
 	var q change.Batch
-	if err := decode(w, r, &q, maxRequest); err != nil {
+	if err := decode(w, r, &q, MaxRequest); err != nil {
 		result(w, nil, err, 0)
 		return
 	}
 	published, err := s.db.Commit(r.PathValue("name"), q)
+	result(w, published, err, http.StatusOK)
+}
+
+// commitV2 accepts the typed operation envelope form of a commit. Decoding
+// into the shared domain batch keeps one commit path for both entries.
+func (s service) commitV2(w http.ResponseWriter, r *http.Request) {
+	var q change.EnvelopeBatch
+	if err := decode(w, r, &q, MaxRequest); err != nil {
+		result(w, nil, err, 0)
+		return
+	}
+	batch, err := q.Batch()
+	if err != nil {
+		result(w, nil, err, 0)
+		return
+	}
+	published, err := s.db.Commit(r.PathValue("name"), batch)
 	result(w, published, err, http.StatusOK)
 }
 

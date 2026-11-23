@@ -11,7 +11,8 @@ import (
 	"rillweave/image"
 )
 
-const maxRequest = 8 << 20
+// MaxRequest bounds every JSON request body, on both the v1 and v2 entries.
+const MaxRequest = 8 << 20
 
 type service struct {
 	db *engine.Database
@@ -24,6 +25,7 @@ func New(db *engine.Database) http.Handler {
 	mux.HandleFunc("POST /rill/v1/graphs", s.create)
 	mux.HandleFunc("GET /rill/v1/graphs/{name}/catalog", s.catalog)
 	mux.HandleFunc("POST /rill/v1/graphs/{name}/commit", s.commit)
+	mux.HandleFunc("POST /rill/v2/graphs/{name}/commit", s.commitV2)
 	mux.HandleFunc("GET /rill/v1/graphs/{name}/vertices/{id}", s.vertex)
 	mux.HandleFunc("POST /rill/v1/graphs/{name}/lookup", reading(db.Lookup))
 	mux.HandleFunc("POST /rill/v1/graphs/{name}/adjacency", reading(db.Adjacent))

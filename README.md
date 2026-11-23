@@ -33,6 +33,7 @@ read to use a fixed view rather than the head. Normal reads return `graph`,
 | POST | `/rill/v1/graphs` | `{"name":"...","schema":{...}}`; creates revision 1 |
 | GET | `G/catalog` | Schema, vertex and arc counts |
 | POST | `G/commit` | `{"base":1,"edits":[...]}`; new head summary |
+| POST | `/rill/v2/graphs/{name}/commit` | `{"base":"1","edits":[...]}` typed envelopes; new head summary |
 | GET | `G/vertices/{id}` | One vertex in the selected revision |
 | POST | `G/lookup` | `kind`, `property`, `value`, optional `limit`; IDs and exact count |
 | POST | `G/adjacency` | `vertex`, optional selection and `limit`; matching arcs by ID |
@@ -81,6 +82,37 @@ the lexicographically smallest arc ID sequence. Reach lists vertices in
 deterministic breadth-first discovery order. Components use only forward
 links for grouping and give each group its smallest vertex ID.
 
+### v2 typed envelopes and SDK migration
+
+`POST /rill/v2/graphs/{name}/commit` accepts the same commit as a typed
+operation envelope and shares the v1 commit path, limits and result; the
+v1 entry is unchanged and old clients keep working. Each envelope edit
+carries exactly one operation key (`put_vertex`, `put_arc`, `drop_vertex`,
+`drop_arc` or `set_schema`) with its payload, `base` is a decimal string,
+and every property value is a typed scalar: `{"text":"..."}`,
+`{"int":"-9223372036854775808"}` or `{"bool":true}`. Integers travel as
+canonical decimal strings, so adjacent 64-bit values stay distinct and
+numeric-looking text keeps its type through a browser's JSON parse and
+re-serialization, where plain numbers collapse to float64. Arc `cost`
+stays a JSON number because valid costs are exactly representable there.
+
+The `rillmigrate` tool converts a raw v1 commit body to the v2 form:
+
+```sh
+go build -o rillmigrate ./cmd/rillmigrate
+./rillmigrate -in v1-commit.json -out v2-commit.json
+```
+
+Exit 0 means the converted body fits the request limit; exit 4 means the
+input is not a convertible v1 commit request; exit 3 means the converted
+body exceeds the 8 MiB request limit both entries share, in which case the
+tool says so and the original request stays replayable via the v1 entry
+(`-force` still writes the oversized body, e.g. to verify the limit).
+`python3 examples/migration.py` builds both binaries and replays the raw
+v1 requests under `examples/migration/samples/` through both entries,
+checking identical acceptance and written properties, browser round-trip
+safety and the overflow path.
+
 `budget` counts candidate arc inspections, including candidates rejected by
 kind selection and repeated inspections during graph search. Zero or omitted
 uses 300000; exhaustion rejects the whole query. `limit` for lookup and
@@ -91,7 +123,8 @@ that is different from a missing endpoint or a query that ran out of budget.
 ### Storage and Verification
 
 A namespace has at most 10000 vertices, 40000 arcs and a 12 MiB image payload;
-a commit has at most 2000 edits. At most 32 namespaces and 16 simultaneous
+a commit has at most 2000 edits and every request body is limited to 8 MiB.
+At most 32 namespaces and 16 simultaneous
 pins exist per process; pins are not durable, and two pins can hold the same
 revision. Use a successful image export for an offline representation of a
 pinned revision. Export does not freeze ongoing writes. In a restore, the
