@@ -67,7 +67,7 @@ func (db *Database) publish(g *graph.Graph) (Summary, error) {
 		return Summary{}, err
 	}
 	next := materialize(g)
-	uncertain, err := db.disk.Write(g.Name, encoded)
+	uncertain, err := db.store.Write(g.Name, g.Revision, encoded)
 	if err != nil {
 		log.Printf("publish graph %q revision %d: %v", g.Name, g.Revision, err)
 		if uncertain {

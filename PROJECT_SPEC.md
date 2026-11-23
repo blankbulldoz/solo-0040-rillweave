@@ -17,7 +17,7 @@ and `spar` in the examples are synthetic.
 | index | Deterministic adjacency and typed vertex postings |
 | walk | Graph query semantics, expansion budgets and witnesses |
 | image | Portable versioned encoding, size limit and integrity |
-| disk | Exclusive writer ownership and durable file replacement |
+| disk | Exclusive writer ownership, storage backend selection, durable head installation and offline SQLite migration |
 | view | Bounded handles to immutable read states |
 | engine | Head publication, pinned access and restore semantics |
 | wire | HTTP requests, bounded decoding and domain error mapping |
@@ -44,6 +44,19 @@ node's durable graph file and synchronizes the directory. A failure after the
 rename but before confirmed durability makes further graph operations fail
 until restart. The instance must own its data directory exclusively.
 
+A data directory has exactly one active storage backend. Legacy directories
+keep one `.rill` head file per graph; migrated directories hold all heads in a
+single SQLite database (`rillweave.db`) whose heads table stores the same
+versioned image envelopes with their local names and exact revisions. The
+offline migration stages and verifies a separate database file before an
+atomic rename, so an interruption before the rename leaves every legacy head
+usable, while an interruption afterward leaves the database authoritative;
+the migration command is rerunnable and finishes any incomplete archiving.
+After migration the server reads only the database and ignores stray `.rill`
+files rather than falling back to a stale head. SQLite publication commits one
+atomic transaction under full synchronization, so it has no rename-window
+uncertainty.
+
 ## Public Workflows
 
 | Workflow | Success | Alternative or rejection |
@@ -60,6 +73,7 @@ until restart. The instance must own its data directory exclusively.
 | compare | Compare two views of the same graph by entity identity and schema change | A foreign handle cannot participate |
 | backup | Export one selected revision and import it under an unused name | Malformed images and occupied names do not overwrite existing state |
 | restart | Reopen durable graphs and reconstruct indexes | Full corruption fails startup; ephemeral view handles are not recovered |
+| migrate | Offline cutover from per-graph `.rill` heads to the SQLite database, preserving names and revisions | A running server or a head failing verification blocks conversion; interruption is recoverable and the command reruns |
 
 The graph, revision, traversal constraints and work budget are visible through
 the protocol documented in README. Validate by building and running each

@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"log"
 	"sync"
 
 	"rillweave/catalog"
@@ -26,28 +27,34 @@ func materialize(g *graph.Graph) *state {
 
 type Database struct {
 	mu    sync.RWMutex
-	disk  *disk.Directory
+	store disk.Store
 	heads map[string]*state
 	held  view.Handles[*state]
 	fault bool
 }
 
 func Open(root string) (*Database, error) {
-	dir, err := disk.Open(root)
+	store, strayHeads, err := disk.Open(root)
 	if err != nil {
 		return nil, err
 	}
-	db := &Database{disk: dir, heads: make(map[string]*state), held: view.New[*state]()}
-	err = dir.RestoreHeads(db.acceptHead)
+	if len(strayHeads) > 0 {
+		// Migration has switched this directory to SQLite mode. The old head
+		// files are no longer active storage; they must never be served again.
+		log.Printf("storage in SQLite mode; ignoring %d legacy head file(s) left in data directory: %v",
+			len(strayHeads), strayHeads)
+	}
+	db := &Database{store: store, heads: make(map[string]*state), held: view.New[*state]()}
+	err = store.RestoreHeads(db.acceptHead)
 	if err != nil {
-		_ = dir.Close()
+		_ = store.Close()
 		return nil, err
 	}
 	return db, nil
 }
 
 func (db *Database) Close() error {
-	return db.disk.Close()
+	return db.store.Close()
 }
 
 func (db *Database) acceptHead(name string, encoded image.Envelope) error {

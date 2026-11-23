@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -13,17 +14,46 @@ import (
 	"syscall"
 	"time"
 
+	"rillweave/disk"
 	"rillweave/engine"
 	"rillweave/wire"
 )
 
 func main() {
 	addr := flag.String("listen", "127.0.0.1:8174", "HTTP listen address")
-	root := flag.String("data", "rillweave-data", "directory of durable graph heads")
+	root := flag.String("data", "rillweave-data", "directory holding the active graph storage")
+	migrate := flag.Bool("migrate", false, "convert a legacy per-graph .rill data directory to the SQLite database and exit")
 	flag.Parse()
+	if *migrate {
+		if err := runMigration(*root); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 	if err := run(*addr, *root); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// runMigration performs the offline storage cutover. It never serves traffic;
+// the exclusive data-directory lock makes a concurrent server fail instead of
+// mixing two storage modes.
+func runMigration(root string) error {
+	report, err := disk.Migrate(root)
+	if err != nil {
+		return err
+	}
+	encoded, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(encoded))
+	if report.AlreadyMigrated {
+		log.Printf("data directory %q already uses SQLite storage; verification and cleanup completed", root)
+	} else {
+		log.Printf("data directory %q migrated to SQLite storage with %d graph head(s)", root, len(report.Heads))
+	}
+	return nil
 }
 
 func run(addr, root string) error {

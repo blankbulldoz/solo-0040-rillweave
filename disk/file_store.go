@@ -13,22 +13,28 @@ import (
 	"rillweave/image"
 )
 
-const suffix = ".rill"
+const headsSuffix = ".rill"
 
-func (d *Directory) RestoreHeads(accept func(string, image.Envelope) error) error {
-	entries, err := os.ReadDir(d.root)
+// fileStore is the legacy one-head-file-per-graph storage. It is used only by
+// data directories that have never been migrated.
+type fileStore struct {
+	owned *ownership
+}
+
+func (f *fileStore) RestoreHeads(accept func(string, image.Envelope) error) error {
+	entries, err := os.ReadDir(f.owned.root)
 	if err != nil {
 		return err
 	}
 	for _, entry := range entries {
-		if !strings.HasSuffix(entry.Name(), suffix) {
+		if !strings.HasSuffix(entry.Name(), headsSuffix) {
 			continue
 		}
-		name := strings.TrimSuffix(entry.Name(), suffix)
+		name := strings.TrimSuffix(entry.Name(), headsSuffix)
 		if !graph.ValidID(name) || !entry.Type().IsRegular() {
 			return fmt.Errorf("invalid graph head entry %q", entry.Name())
 		}
-		encoded, err := readEnvelope(filepath.Join(d.root, entry.Name()))
+		encoded, err := readEnvelope(filepath.Join(f.owned.root, entry.Name()))
 		if err == nil {
 			err = accept(name, encoded)
 		}
@@ -58,30 +64,32 @@ func readEnvelope(path string) (image.Envelope, error) {
 }
 
 // Write reports uncertainty only after the durable pathname has changed.
-func (d *Directory) Write(name string, encoded image.Envelope) (uncertain bool, err error) {
+func (f *fileStore) Write(name string, revision uint64, encoded image.Envelope) (uncertain bool, err error) {
 	if !graph.ValidID(name) {
 		return false, fmt.Errorf("invalid graph name")
 	}
-	f, err := os.CreateTemp(d.root, ".rill-pending-")
+	file, err := os.CreateTemp(f.owned.root, headsPrefix)
 	if err != nil {
 		return false, err
 	}
-	defer os.Remove(f.Name())
-	if err = json.NewEncoder(f).Encode(encoded); err == nil {
-		err = f.Sync()
+	defer os.Remove(file.Name())
+	if err = json.NewEncoder(file).Encode(encoded); err == nil {
+		err = file.Sync()
 	}
-	closeErr := f.Close()
+	closeErr := file.Close()
 	if err != nil {
 		return false, err
 	}
 	if closeErr != nil {
 		return false, closeErr
 	}
-	if err = os.Rename(f.Name(), filepath.Join(d.root, name+suffix)); err != nil {
+	if err = os.Rename(file.Name(), filepath.Join(f.owned.root, name+headsSuffix)); err != nil {
 		return false, err
 	}
-	if err = d.dir.Sync(); err != nil {
+	if err = f.owned.syncDir(); err != nil {
 		return true, err
 	}
 	return false, nil
 }
+
+func (f *fileStore) Close() error { return f.owned.release() }
